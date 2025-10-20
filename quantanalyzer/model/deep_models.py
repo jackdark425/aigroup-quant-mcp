@@ -355,8 +355,14 @@ class _LSTMNet(nn.Module):
         # 如果输入是2D的，需要reshape
         if x.dim() == 2:
             batch_size = x.size(0)
-            seq_len = x.size(1) // self.d_feat
-            x = x.reshape(batch_size, seq_len, self.d_feat)
+            # 检查是否可以reshape为序列格式
+            if x.size(1) % self.d_feat == 0:
+                seq_len = x.size(1) // self.d_feat
+                x = x.reshape(batch_size, seq_len, self.d_feat)
+            else:
+                # 如果无法reshape为序列，则视为单时间步特征
+                # 添加序列维度: [batch_size, features] -> [batch_size, 1, features]
+                x = x.unsqueeze(1)
         
         # LSTM: [batch_size, seq_len, d_feat] -> [batch_size, seq_len, hidden_size]
         out, _ = self.rnn(x)
@@ -412,8 +418,14 @@ class _GRUNet(nn.Module):
         # 如果输入是2D的，需要reshape
         if x.dim() == 2:
             batch_size = x.size(0)
-            seq_len = x.size(1) // self.d_feat
-            x = x.reshape(batch_size, seq_len, self.d_feat)
+            # 检查是否可以reshape为序列格式
+            if x.size(1) % self.d_feat == 0:
+                seq_len = x.size(1) // self.d_feat
+                x = x.reshape(batch_size, seq_len, self.d_feat)
+            else:
+                # 如果无法reshape为序列，则视为单时间步特征
+                # 添加序列维度: [batch_size, features] -> [batch_size, 1, features]
+                x = x.unsqueeze(1)
         
         # GRU: [batch_size, seq_len, d_feat] -> [batch_size, seq_len, hidden_size]
         out, _ = self.rnn(x)
@@ -730,8 +742,14 @@ class _TransformerNet(nn.Module):
         # 如果输入是2D的，需要reshape
         if x.dim() == 2:
             batch_size = x.size(0)
-            seq_len = x.size(1) // self.d_feat
-            x = x.reshape(batch_size, seq_len, self.d_feat)
+            # 检查是否可以reshape为序列格式
+            if x.size(1) % self.d_feat == 0:
+                seq_len = x.size(1) // self.d_feat
+                x = x.reshape(batch_size, seq_len, self.d_feat)
+            else:
+                # 如果无法reshape为序列，则视为单时间步特征
+                # 添加序列维度: [batch_size, features] -> [batch_size, 1, features]
+                x = x.unsqueeze(1)
         
         # 输入投影: [batch_size, seq_len, d_feat] -> [batch_size, seq_len, d_model]
         x = self.input_proj(x)

@@ -12,13 +12,19 @@ class TestFactorLibrary(unittest.TestCase):
     
     def setUp(self):
         """Set up test data"""
+        # 创建MultiIndex数据
+        dates = pd.date_range('2020-01-01', periods=5)
+        symbols = ['AAPL'] * 5
+        index = pd.MultiIndex.from_arrays([dates, symbols], names=['datetime', 'symbol'])
+        
         self.data = pd.DataFrame({
             'open': [1, 2, 3, 4, 5],
             'high': [1.5, 2.5, 3.5, 4.5, 5.5],
             'low': [0.5, 1.5, 2.5, 3.5, 4.5],
             'close': [1.2, 2.2, 3.2, 4.2, 5.2],
             'volume': [100, 200, 300, 400, 500]
-        })
+        }, index=index)
+        
         self.library = FactorLibrary()
     
     def test_sma_factor(self):

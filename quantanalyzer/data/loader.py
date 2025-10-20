@@ -72,6 +72,35 @@ class DataLoader:
         
         return df
     
+    def load_from_dict(
+        self,
+        data: Dict[str, List],
+        symbol_col: str = "symbol",
+        datetime_col: str = "datetime"
+    ) -> pd.DataFrame:
+        """
+        从字典加载数据
+        
+        Args:
+            data: 包含列名和数据的字典
+            symbol_col: 股票代码列名
+            datetime_col: 日期列名
+            
+        Returns:
+            MultiIndex DataFrame
+        """
+        # 创建DataFrame
+        df = pd.DataFrame(data)
+        
+        # 添加默认的symbol和datetime列
+        if symbol_col not in df.columns:
+            df[symbol_col] = 'default_symbol'
+        if datetime_col not in df.columns:
+            df[datetime_col] = pd.date_range(start='2020-01-01', periods=len(df), freq='D')
+        
+        # 使用现有的load_from_dataframe方法
+        return self.load_from_dataframe(df, symbol_col, datetime_col)
+    
     def load_multiple_files(
         self,
         file_pattern: str,

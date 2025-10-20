@@ -144,3 +144,61 @@ class FactorLibrary:
             'middle': middle,
             'lower': lower
         })
+    
+    def calculate_factor(self, factor_name: str, data: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        """
+        计算指定因子
+        
+        Args:
+            factor_name: 因子名称 ('sma', 'returns', 'volatility', 'momentum', 'volume_ratio', 'rsi', 'macd', 'bollinger_bands')
+            data: 输入数据DataFrame
+            **kwargs: 因子参数
+            
+        Returns:
+            包含因子值的DataFrame
+        """
+        factor_name = factor_name.lower()
+        
+        if factor_name == 'sma':
+            window = kwargs.get('window', 20)
+            close = data['close']
+            sma = close.groupby(level=1).rolling(window).mean().droplevel(0)
+            return pd.DataFrame({f'sma_{window}': sma})
+            
+        elif factor_name == 'returns':
+            close = data['close']
+            returns = close.groupby(level=1).pct_change()
+            return pd.DataFrame({'returns': returns})
+            
+        elif factor_name == 'volatility':
+            window = kwargs.get('window', 20)
+            close = data['close']
+            returns = close.groupby(level=1).pct_change()
+            volatility = returns.groupby(level=1).rolling(window).std().droplevel(0)
+            return pd.DataFrame({f'volatility_{window}': volatility})
+            
+        elif factor_name == 'momentum':
+            period = kwargs.get('period', 20)
+            return pd.DataFrame({'momentum': self.momentum(data, period)})
+            
+        elif factor_name == 'volume_ratio':
+            period = kwargs.get('period', 20)
+            return pd.DataFrame({'volume_ratio': self.volume_ratio(data, period)})
+            
+        elif factor_name == 'rsi':
+            period = kwargs.get('period', 14)
+            return pd.DataFrame({'rsi': self.rsi(data, period)})
+            
+        elif factor_name == 'macd':
+            fast = kwargs.get('fast', 12)
+            slow = kwargs.get('slow', 26)
+            signal = kwargs.get('signal', 9)
+            return self.macd(data, fast, slow, signal)
+            
+        elif factor_name == 'bollinger_bands':
+            period = kwargs.get('period', 20)
+            num_std = kwargs.get('num_std', 2.0)
+            return self.bollinger_bands(data, period, num_std)
+            
+        else:
+            raise ValueError(f"不支持的因子类型: {factor_name}")
