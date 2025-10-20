@@ -608,32 +608,7 @@ for col in alpha158.columns:
 top_factors = sorted(results, key=lambda x: abs(x['icir']), reverse=True)[:20]
 ```
 
----
 
-## 🎨 版本历史
-
-### v2.0 (2025-01-16) - 重大功能扩展
-
-**新增**：
-- ✨ Alpha158因子库（158个技术指标）
-- 🤖 深度学习模型（LSTM/GRU/Transformer）
-- 🛠️ MCP工具扩展（11个工具）
-- 📦 PyTorch集成
-- 📚 完整测试和文档
-
-**改进**：
-- 🔧 因子计算性能优化
-- 📊 索引对齐问题修复
-- 📝 文档完善
-
-### v1.0 (2025-01-15) - 初始版本
-
-**功能**：
-- ✅ 基础因子库（6个）
-- ✅ 传统ML模型（LightGBM/XGBoost/Linear）
-- ✅ 因子评估（IC/ICIR）
-- ✅ TopK回测
-- ✅ MCP服务（5个工具）
 
 ---
 
