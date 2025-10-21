@@ -7,7 +7,15 @@
         "quantanalyzer.mcp"
       ],
       "cwd": "d:/aigroup-quant-mcp/aigroup-quant-mcp",
-      "env": {}
+      "env": {},
+      "alwaysAllow": [
+        "load_csv_data",
+        "calculate_factor",
+        "generate_alpha158",
+        "evaluate_factor_ic",
+        "list_factors",
+        "quick_start_lstm"
+      ]
     }
   }
 }
