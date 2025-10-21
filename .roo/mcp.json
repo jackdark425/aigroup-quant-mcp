@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "aigroup-quant-mcp": {
+      "command": "python",
+      "args": [
+        "-m",
+        "quantanalyzer.mcp"
+      ],
+      "cwd": "d:/aigroup-quant-mcp/aigroup-quant-mcp",
+      "env": {}
+    }
+  }
+}
