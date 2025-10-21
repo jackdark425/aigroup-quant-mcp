@@ -154,6 +154,9 @@ async def handle_calculate_factor(args: Dict[str, Any]) -> List[types.TextConten
         null_count = int(factor_values.isna().sum()) if hasattr(factor_values, 'isna') else 0
         null_rate = null_count / len(factor_values) if len(factor_values) > 0 else 0
         
+        # 先计算质量分数，避免在构建result时引用自身
+        quality_score = "优秀" if null_rate < 0.01 else "良好" if null_rate < 0.05 else "需要清洗"
+        
         result = {
             "status": "success",
             "message": f"✅ 因子 '{factor_name}' 计算完成",
@@ -167,7 +170,7 @@ async def handle_calculate_factor(args: Dict[str, Any]) -> List[types.TextConten
             "data_quality": {
                 "null_count": null_count,
                 "null_rate": f"{null_rate * 100:.2f}%",
-                "quality_score": "优秀" if null_rate < 0.01 else "良好" if null_rate < 0.05 else "需要清洗"
+                "quality_score": quality_score
             },
             "next_steps": [
                 {
@@ -189,7 +192,7 @@ async def handle_calculate_factor(args: Dict[str, Any]) -> List[types.TextConten
             ],
             "tips": [
                 f"💡 因子类型: {factor_type}，周期: {period}天",
-                f"💡 数据质量: {result['data_quality']['quality_score']}",
+                f"💡 数据质量: {quality_score}",
                 "💡 建议先评估IC再决定是否使用此因子"
             ]
         }
@@ -286,6 +289,9 @@ async def handle_generate_alpha158(args: Dict[str, Any]) -> List[types.TextConte
         total_values = alpha158.shape[0] * alpha158.shape[1]
         null_rate = null_count / total_values if total_values > 0 else 0
         
+        # 先计算质量分数，避免在构建result时引用自身
+        quality_score = "优秀" if null_rate < 0.01 else "良好" if null_rate < 0.05 else "需要清洗"
+        
         result = {
             "status": "success",
             "message": f"✅ Alpha158因子已生成并存储为 '{result_id}'",
@@ -303,7 +309,7 @@ async def handle_generate_alpha158(args: Dict[str, Any]) -> List[types.TextConte
             "data_quality": {
                 "null_count": null_count,
                 "null_rate": f"{null_rate * 100:.2f}%",
-                "quality_score": "优秀" if null_rate < 0.01 else "良好" if null_rate < 0.05 else "需要清洗",
+                "quality_score": quality_score,
                 "recommendation": "数据质量良好，可直接用于模型训练" if null_rate < 0.01 else "建议使用 apply_processor_chain 进行数据清洗"
             },
             "next_steps": [
@@ -334,7 +340,7 @@ async def handle_generate_alpha158(args: Dict[str, Any]) -> List[types.TextConte
             ],
             "tips": [
                 f"💡 因子数量: {len(alpha158.columns)}个，建议使用LSTM或Transformer模型",
-                f"💡 数据质量: {result['data_quality']['quality_score']}",
+                f"💡 数据质量: {quality_score}",
                 "💡 如果数据量不足1000条，建议使用更小的rolling_windows"
             ]
         }
@@ -380,7 +386,7 @@ async def handle_quick_start_lstm(args: Dict[str, Any]) -> List[types.TextConten
     
     try:
         # 步骤1: 加载数据
-        print(f"📥 步骤1/4: 加载数据...")
+        # print语句移除以避免Windows环境下的GBK编码错误
         data_result = await handle_load_csv_data({
             "file_path": data_file,
             "data_id": f"{project}_data"
@@ -389,7 +395,6 @@ async def handle_quick_start_lstm(args: Dict[str, Any]) -> List[types.TextConten
         workflow_results["generated_ids"]["data_id"] = f"{project}_data"
         
         # 步骤2: 生成Alpha158因子
-        print(f"🔬 步骤2/4: 生成Alpha158因子...")
         factor_result = await handle_generate_alpha158({
             "data_id": f"{project}_data",
             "result_id": f"{project}_alpha158"
@@ -398,14 +403,12 @@ async def handle_quick_start_lstm(args: Dict[str, Any]) -> List[types.TextConten
         workflow_results["generated_ids"]["factor_id"] = f"{project}_alpha158"
         
         # 步骤3: 数据预处理
-        print(f"⚙️  步骤3/4: 数据预处理...")
         # 注意：这里简化了，实际应该有apply_processor函数
         # 暂时跳过预处理步骤
         workflow_results["steps_completed"].append("preprocessing_skipped")
         workflow_results["generated_ids"]["processed_id"] = f"{project}_alpha158"
         
         # 步骤4: 训练LSTM模型
-        print(f"🤖 步骤4/4: 训练LSTM模型...")
         # 注意：这里需要train_lstm_model函数
         # 暂时返回占位符
         workflow_results["steps_completed"].append("model_training_placeholder")
