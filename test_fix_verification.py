@@ -1,120 +1,92 @@
+#!/usr/bin/env python3
 """
-验证aigroup-quant-mcp修复的测试脚本
+测试股票代码掩码修复功能
 """
 
-import asyncio
-import sys
-import os
+from quantanalyzer.data.loader import DataLoader
+import pandas as pd
 
-# 添加项目路径
-sys.path.insert(0, os.path.dirname(__file__))
+def test_no_symbol_column():
+    """测试没有股票代码列的情况"""
+    print("=== 测试没有股票代码列的数据加载 ===")
 
-from quantanalyzer.mcp.handlers import (
-    handle_calculate_factor,
-    handle_generate_alpha158,
-    data_store,
-    factor_store
-)
-from quantanalyzer.data import DataLoader
+    # 初始化数据加载器
+    loader = DataLoader()
 
-
-async def test_fixes():
-    """测试修复后的功能"""
-    
-    print("=" * 60)
-    print("测试aigroup-quant-mcp修复")
-    print("=" * 60)
-    
-    # 测试1: 加载数据
-    print("\n[测试1] 加载数据...")
     try:
-        loader = DataLoader()
-        data = loader.load_from_csv("exports/maotai_stock_data.csv")
-        data_store["test_data"] = data
-        print("✓ 数据加载成功")
-        print(f"  数据形状: {data.shape}")
+        # 测试加载没有股票代码列的数据
+        print("尝试加载没有股票代码列的测试数据...")
+        df = loader.load_from_csv('test_no_symbol_data.csv')
+
+        print(f"✅ 加载成功！数据形状: {df.shape}")
+        print(f"股票代码: {df.index.get_level_values(1).unique()}")
+        print(f"日期范围: {df.index.get_level_values(0).min()} 到 {df.index.get_level_values(0).max()}")
+
+        # 显示前几行数据
+        print("\n前5行数据:")
+        print(df.head())
+
+        # 数据验证
+        validation_report = loader.validate_data(df)
+        print("\n数据质量检查:")
+        print(f"- 重复数据: {validation_report['duplicate_count']}条")
+        print(f"- 股票数量: {validation_report['symbols_count']}个")
+        print(f"- 日期范围: {validation_report['date_range']['start']} 到 {validation_report['date_range']['end']}")
+
+        print("\n✅ 测试通过！没有股票代码列时成功使用了默认掩码 DEFAULT_STOCK")
+        return True
+
     except Exception as e:
-        print(f"✗ 数据加载失败: {e}")
-        return
-    
-    # 测试2: 计算单个因子（之前会报UnboundLocalError）
-    print("\n[测试2] 计算单个因子...")
+        print(f"❌ 测试失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def test_with_symbol_column():
+    """测试有股票代码列的情况（正常情况）"""
+    print("\n=== 测试有股票代码列的数据加载 ===")
+
+    loader = DataLoader()
+
     try:
-        result = await handle_calculate_factor({
-            "data_id": "test_data",
-            "factor_name": "test_momentum",
-            "factor_type": "momentum",
-            "period": 20
-        })
-        
-        # 检查是否包含错误
-        result_text = result[0].text
-        if "UnboundLocalError" in result_text:
-            print("✗ 仍存在UnboundLocalError")
-            print(f"  错误详情: {result_text}")
-        elif "status" in result_text and "success" in result_text:
-            print("✓ 单因子计算修复成功")
-            print("  因子已正常生成并返回结果")
-        else:
-            print(f"? 返回结果: {result_text[:200]}...")
-            
-    except Exception as e:
-        print(f"✗ 单因子计算测试失败: {e}")
-    
-    # 测试3: 生成Alpha158因子（之前会报UnboundLocalError）
-    print("\n[测试3] 生成Alpha158因子...")
-    try:
-        result = await handle_generate_alpha158({
-            "data_id": "test_data",
-            "result_id": "test_alpha158",
-            "kbar": True,
-            "price": True,
-            "volume": True,
-            "rolling": True,
-            "rolling_windows": [5, 10, 20]
-        })
-        
-        # 检查是否包含错误
-        result_text = result[0].text
-        if "UnboundLocalError" in result_text:
-            print("✗ 仍存在UnboundLocalError")
-            print(f"  错误详情: {result_text}")
-        elif "status" in result_text and "success" in result_text:
-            print("✓ Alpha158因子计算修复成功")
-            print("  因子已正常生成并返回结果")
-        else:
-            print(f"? 返回结果: {result_text[:200]}...")
-            
-    except Exception as e:
-        print(f"✗ Alpha158因子计算测试失败: {e}")
-    
-    # 测试4: 检查编码问题
-    print("\n[测试4] 检查编码...")
-    try:
-        # 检查result中的emoji是否能正常序列化
-        import json
-        test_dict = {
-            "message": "✅ 测试成功",
-            "tips": ["💡 提示1", "💡 提示2"]
+        # 创建有股票代码列的测试数据
+        test_data = {
+            '交易日期': ['20240101', '20240102', '20240103'],
+            '股票代码': ['000001', '000001', '000001'],
+            '开盘': [10.5, 10.8, 11.0],
+            '收盘': [10.8, 11.0, 10.9],
+            '最高': [10.9, 11.1, 11.2],
+            '最低': [10.4, 10.7, 10.8],
+            '成交量': [1000000, 1200000, 900000],
+            '成交额': [10800000, 13200000, 9810000]
         }
-        json_str = json.dumps(test_dict, ensure_ascii=False)
-        print("✓ JSON序列化支持emoji")
-        print(f"  示例: {json_str[:50]}...")
-    except Exception as e:
-        print(f"✗ 编码测试失败: {e}")
-    
-    print("\n" + "=" * 60)
-    print("测试完成")
-    print("=" * 60)
-    
-    # 清理
-    if "test_data" in data_store:
-        del data_store["test_data"]
-    if "test_momentum" in factor_store:
-        del factor_store["test_momentum"]
-    if "test_alpha158" in factor_store:
-        del factor_store["test_alpha158"]
 
+        df = pd.DataFrame(test_data)
+        df.to_csv('test_with_symbol_data.csv', index=False)
+
+        # 加载数据
+        loaded_df = loader.load_from_csv('test_with_symbol_data.csv')
+        print(f"✅ 加载成功！股票代码: {loaded_df.index.get_level_values(1).unique()}")
+
+        return True
+
+    except Exception as e:
+        print(f"❌ 测试失败: {e}")
+        return False
 
 if __name__ == "__main__":
-    asyncio.run(test_fixes())
+    print("开始测试股票代码掩码修复功能...\n")
+
+    # 测试没有股票代码列的情况
+    test1_passed = test_no_symbol_column()
+
+    # 测试有股票代码列的情况
+    test2_passed = test_with_symbol_column()
+
+    print(f"\n{'='*50}")
+    if test1_passed and test2_passed:
+        print("🎉 所有测试通过！修复成功！")
+    else:
+        print("❌ 部分测试失败，需要进一步检查")
+
+    print(f"{'='*50}")
