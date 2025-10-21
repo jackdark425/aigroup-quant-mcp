@@ -1,6 +1,11 @@
 """
 深度学习模型 - LSTM/GRU/Transformer
 参考Qlib实现的深度学习模型
+
+优化内容：
+1. 修复deepcopy导致的梯度累积内存泄漏
+2. 优化批处理，及时释放GPU内存
+3. 优化预测时的内存管理
 """
 
 import numpy as np
@@ -11,6 +16,7 @@ import torch.optim as optim
 from typing import Dict, Optional, Union, Tuple
 from pathlib import Path
 import copy
+import gc
 
 
 class LSTMModel:
@@ -164,7 +170,8 @@ class LSTMModel:
                 if valid_loss < best_loss:
                     best_loss = valid_loss
                     best_epoch = epoch
-                    best_state = copy.deepcopy(self.model.state_dict())
+                    # 优化：只保存state_dict，不保留梯度信息
+                    best_state = {k: v.cpu().clone() for k, v in self.model.state_dict().items()}
                     stop_steps = 0
                 else:
                     stop_steps += 1
@@ -178,12 +185,24 @@ class LSTMModel:
             else:
                 if (epoch + 1) % 10 == 0:
                     print(f"Epoch {epoch+1}/{self.n_epochs} - Train Loss: {train_loss:.6f}")
+            
+            # 定期清理内存
+            if (epoch + 1) % 10 == 0:
+                if self.device.type == 'cuda':
+                    torch.cuda.empty_cache()
+                gc.collect()
         
         # 加载最佳模型
         if best_state is not None:
             self.model.load_state_dict(best_state)
+            del best_state
             
         self.fitted = True
+        
+        # 清理内存
+        if self.device.type == 'cuda':
+            torch.cuda.empty_cache()
+        gc.collect()
         
         return {
             'train_loss': train_losses,
@@ -218,6 +237,9 @@ class LSTMModel:
             total_loss += loss.item()
             n_batches += 1
             
+            # 优化：及时释放GPU内存
+            del X_batch, y_batch, pred, loss
+            
         return total_loss / n_batches
     
     def _eval_epoch(self, X, y, loss_fn) -> float:
@@ -235,6 +257,9 @@ class LSTMModel:
                 
                 total_loss += loss.item()
                 n_batches += 1
+                
+                # 优化：及时释放GPU内存
+                del X_batch, y_batch, pred, loss
                 
         return total_loss / n_batches
     
@@ -258,15 +283,23 @@ class LSTMModel:
         self.model.eval()
         X_values = X.values.astype(np.float32)
         
-        predictions = []
+        # 优化：预分配数组而非使用列表累积
+        predictions = np.zeros(len(X_values), dtype=np.float32)
         
         with torch.no_grad():
             for i in range(0, len(X_values), self.batch_size):
-                X_batch = torch.FloatTensor(X_values[i:i + self.batch_size]).to(self.device)
+                end_idx = min(i + self.batch_size, len(X_values))
+                X_batch = torch.FloatTensor(X_values[i:end_idx]).to(self.device)
                 pred = self.model(X_batch)
-                predictions.append(pred.cpu().numpy())
+                predictions[i:end_idx] = pred.cpu().numpy()
                 
-        predictions = np.concatenate(predictions)
+                # 及时释放GPU内存
+                del X_batch, pred
+        
+        # 清理GPU缓存
+        if self.device.type == 'cuda':
+            torch.cuda.empty_cache()
+            
         return pd.Series(predictions, index=X.index)
     
     def save(self, path: Union[str, Path]):
@@ -577,7 +610,8 @@ class TransformerModel:
                 if valid_loss < best_loss:
                     best_loss = valid_loss
                     best_epoch = epoch
-                    best_state = copy.deepcopy(self.model.state_dict())
+                    # 优化：只保存state_dict，不保留梯度信息
+                    best_state = {k: v.cpu().clone() for k, v in self.model.state_dict().items()}
                     stop_steps = 0
                 else:
                     stop_steps += 1
@@ -591,12 +625,24 @@ class TransformerModel:
             else:
                 if (epoch + 1) % 10 == 0:
                     print(f"Epoch {epoch+1}/{self.n_epochs} - Train Loss: {train_loss:.6f}")
+            
+            # 定期清理内存
+            if (epoch + 1) % 10 == 0:
+                if self.device.type == 'cuda':
+                    torch.cuda.empty_cache()
+                gc.collect()
         
         # 加载最佳模型
         if best_state is not None:
             self.model.load_state_dict(best_state)
+            del best_state
             
         self.fitted = True
+        
+        # 清理内存
+        if self.device.type == 'cuda':
+            torch.cuda.empty_cache()
+        gc.collect()
         
         return {
             'train_loss': train_losses,
@@ -631,6 +677,9 @@ class TransformerModel:
             total_loss += loss.item()
             n_batches += 1
             
+            # 优化：及时释放GPU内存
+            del X_batch, y_batch, pred, loss
+            
         return total_loss / n_batches
     
     def _eval_epoch(self, X, y, loss_fn) -> float:
@@ -649,6 +698,9 @@ class TransformerModel:
                 total_loss += loss.item()
                 n_batches += 1
                 
+                # 优化：及时释放GPU内存
+                del X_batch, y_batch, pred, loss
+                
         return total_loss / n_batches
     
     def predict(self, X: pd.DataFrame) -> pd.Series:
@@ -659,15 +711,23 @@ class TransformerModel:
         self.model.eval()
         X_values = X.values.astype(np.float32)
         
-        predictions = []
+        # 优化：预分配数组而非使用列表累积
+        predictions = np.zeros(len(X_values), dtype=np.float32)
         
         with torch.no_grad():
             for i in range(0, len(X_values), self.batch_size):
-                X_batch = torch.FloatTensor(X_values[i:i + self.batch_size]).to(self.device)
+                end_idx = min(i + self.batch_size, len(X_values))
+                X_batch = torch.FloatTensor(X_values[i:end_idx]).to(self.device)
                 pred = self.model(X_batch)
-                predictions.append(pred.cpu().numpy())
+                predictions[i:end_idx] = pred.cpu().numpy()
                 
-        predictions = np.concatenate(predictions)
+                # 及时释放GPU内存
+                del X_batch, pred
+        
+        # 清理GPU缓存
+        if self.device.type == 'cuda':
+            torch.cuda.empty_cache()
+            
         return pd.Series(predictions, index=X.index)
     
     def save(self, path: Union[str, Path]):

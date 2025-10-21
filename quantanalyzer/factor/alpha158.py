@@ -1,4 +1,3 @@
-
 """
 Alpha158 因子库 - 参考Qlib实现
 包含158个技术指标因子的完整实现
@@ -10,10 +9,10 @@ Alpha158 因子库 - 参考Qlib实现
 4. ROLLING (滚动统计) - 139个因子
 
 优化内容：
-1. 减少中间DataFrame生成，使用原地操作
-2. 优化滚动计算，避免重复计算
-3. 使用更高效的数据访问方式
-4. 添加内存管理功能
+1. 移除不必要的DataFrame复制，直接使用引用
+2. 优化滚动计算，使用向量化操作替代循环
+3. 分块处理大数据集，及时释放内存
+4. 优化CORR/CORD计算，避免多次concat
 """
 
 import pandas as pd
@@ -33,7 +32,7 @@ class Alpha158Generator:
     - ROLLING: 滚动统计特征
     """
     
-    def __init__(self, data: pd.DataFrame):
+    def __init__(self, data: pd.DataFrame, copy_data: bool = False):
         """
         初始化Alpha158因子生成器
         
@@ -42,8 +41,11 @@ class Alpha158Generator:
         data : pd.DataFrame
             MultiIndex DataFrame (datetime, symbol)
             必须包含列: open, high, low, close, volume, vwap(可选)
+        copy_data : bool
+            是否复制数据，默认False节省内存
         """
-        self.data = data.copy()
+        # 优化：避免不必要的复制，节省内存
+        self.data = data.copy() if copy_data else data
         self._validate_data()
         
     def _validate_data(self):
@@ -58,7 +60,8 @@ class Alpha158Generator:
                      price: bool = True, 
                      volume: bool = True,
                      rolling: bool = True,
-                     rolling_windows: List[int] = None) -> pd.DataFrame:
+                     rolling_windows: List[int] = None,
+                     chunk_size: Optional[int] = None) -> pd.DataFrame:
         """
         生成所有Alpha158因子
         
@@ -74,6 +77,8 @@ class Alpha158Generator:
             是否生成滚动统计因子
         rolling_windows : List[int]
             滚动窗口大小列表，默认[5, 10, 20, 30, 60]
+        chunk_size : int, optional
+            分块处理大小，用于大数据集优化
             
         Returns:
         --------
@@ -82,6 +87,12 @@ class Alpha158Generator:
         """
         if rolling_windows is None:
             rolling_windows = [5, 10, 20, 30, 60]
+        
+        # 如果指定分块大小，使用分块处理
+        if chunk_size is not None and len(self.data) > chunk_size:
+            return self._generate_all_chunked(
+                kbar, price, volume, rolling, rolling_windows, chunk_size
+            )
             
         # 使用列表收集因子，最后一次性合并
         factor_list = []
@@ -90,21 +101,29 @@ class Alpha158Generator:
         if kbar:
             kbar_factors = self._generate_kbar_features()
             factor_list.append(kbar_factors)
+            del kbar_factors  # 及时释放
+            gc.collect()
             
         # 2. 价格因子 (5个)
         if price:
             price_factors = self._generate_price_features()
             factor_list.append(price_factors)
+            del price_factors
+            gc.collect()
             
         # 3. 成交量因子 (5个)
         if volume:
             volume_factors = self._generate_volume_features()
             factor_list.append(volume_factors)
+            del volume_factors
+            gc.collect()
             
         # 4. 滚动统计因子 (最多139个，取决于窗口数量)
         if rolling:
             rolling_factors = self._generate_rolling_features(rolling_windows)
             factor_list.append(rolling_factors)
+            del rolling_factors
+            gc.collect()
             
         # 一次性合并所有因子
         if factor_list:
@@ -115,6 +134,49 @@ class Alpha158Generator:
         # 强制垃圾回收
         gc.collect()
             
+        return result
+    
+    def _generate_all_chunked(
+        self, 
+        kbar: bool, 
+        price: bool, 
+        volume: bool, 
+        rolling: bool,
+        rolling_windows: List[int],
+        chunk_size: int
+    ) -> pd.DataFrame:
+        """分块生成因子，用于大数据集"""
+        symbols = self.data.index.get_level_values(1).unique()
+        chunks = [symbols[i:i+chunk_size] for i in range(0, len(symbols), chunk_size)]
+        
+        all_results = []
+        for i, symbol_chunk in enumerate(chunks):
+            print(f"处理分块 {i+1}/{len(chunks)}, 符号数: {len(symbol_chunk)}")
+            
+            # 提取当前分块数据
+            chunk_data = self.data[self.data.index.get_level_values(1).isin(symbol_chunk)]
+            
+            # 创建临时生成器
+            temp_gen = Alpha158Generator(chunk_data, copy_data=False)
+            
+            # 生成因子
+            chunk_result = temp_gen.generate_all(
+                kbar=kbar, price=price, volume=volume, 
+                rolling=rolling, rolling_windows=rolling_windows,
+                chunk_size=None  # 避免递归分块
+            )
+            
+            all_results.append(chunk_result)
+            
+            # 清理临时对象
+            del temp_gen, chunk_data, chunk_result
+            gc.collect()
+        
+        # 合并所有分块结果
+        result = pd.concat(all_results, axis=0).sort_index()
+        del all_results
+        gc.collect()
+        
         return result
     
     def _generate_kbar_features(self) -> pd.DataFrame:
@@ -233,7 +295,7 @@ class Alpha158Generator:
     def _generate_rolling_features(self, windows: List[int]) -> pd.DataFrame:
         """
         生成滚动统计特征
-        使用transform确保索引对齐
+        优化：减少临时对象创建，使用向量化操作
         
         Parameters:
         -----------
@@ -360,28 +422,11 @@ class Alpha158Generator:
             # IMXD: 索引差
             features[f'IMXD{d}'] = (features[f'IMAX{d}'] * d - features[f'IMIN{d}'] * d) / d
             
-            # CORR: 价格与成交量相关性 - 优化版本
-            corr_result = []
-            symbols = close.index.get_level_values(1).unique()
-            for symbol in symbols:
-                symbol_close = close.xs(symbol, level=1)
-                symbol_vol = log_vol.xs(symbol, level=1)
-                symbol_corr = symbol_close.rolling(d, min_periods=1).corr(symbol_vol)
-                corr_result.append(pd.DataFrame({f'CORR{d}': symbol_corr}, 
-                                               index=pd.MultiIndex.from_product([symbol_close.index, [symbol]],
-                                                                              names=['datetime', 'symbol'])))
-            features[f'CORR{d}'] = pd.concat(corr_result).sort_index()[f'CORR{d}']
+            # CORR: 价格与成交量相关性 - 优化版本，避免多次concat
+            features[f'CORR{d}'] = self._calc_rolling_corr(close, log_vol, d)
             
             # CORD: 价格变化与成交量变化相关性 - 优化版本
-            cord_result = []
-            for symbol in symbols:
-                symbol_cpct = close_pct.xs(symbol, level=1)
-                symbol_vpct = volume_pct.xs(symbol, level=1)
-                symbol_cord = symbol_cpct.rolling(d, min_periods=1).corr(symbol_vpct)
-                cord_result.append(pd.DataFrame({f'CORD{d}': symbol_cord},
-                                               index=pd.MultiIndex.from_product([symbol_cpct.index, [symbol]],
-                                                                              names=['datetime', 'symbol'])))
-            features[f'CORD{d}'] = pd.concat(cord_result).sort_index()[f'CORD{d}']
+            features[f'CORD{d}'] = self._calc_rolling_corr(close_pct, volume_pct, d)
             
             # CNTP: 上涨天数占比
             up = (close > close.groupby(level=1).shift(1)).astype(float)
@@ -440,4 +485,81 @@ class Alpha158Generator:
             
             # VSUMP/VSUMN/VSUMD: 成交量涨跌统计
             vol_gain = np.maximum(volume - volume.groupby(level=1).shift(1), 0)
-            vol_loss
+            vol_loss = np.maximum(volume.groupby(level=1).shift(1) - volume, 0)
+            vol_abs = np.abs(volume - volume.groupby(level=1).shift(1))
+            
+            vol_sum_gain = vol_gain.groupby(level=1).transform(
+                lambda x: x.rolling(d, min_periods=1).sum()
+            )
+            vol_sum_loss = vol_loss.groupby(level=1).transform(
+                lambda x: x.rolling(d, min_periods=1).sum()
+            )
+            vol_sum_abs = vol_abs.groupby(level=1).transform(
+                lambda x: x.rolling(d, min_periods=1).sum()
+            )
+            
+            features[f'VSUMP{d}'] = vol_sum_gain / (vol_sum_abs + 1e-12)
+            features[f'VSUMN{d}'] = vol_sum_loss / (vol_sum_abs + 1e-12)
+            features[f'VSUMD{d}'] = (vol_sum_gain - vol_sum_loss) / (vol_sum_abs + 1e-12)
+            
+            # 清理临时变量
+            del ma_rolling, std_rolling, beta_rolling, resi_rolling
+            del max_rolling, min_rolling, qtlu_rolling, qtld_rolling
+            del rsv_min, rsv_max, up, down
+            del gain, loss, abs_change, sum_gain, sum_loss, sum_abs
+            del vma_rolling, vstd_rolling, weighted_vol, wvma_std, wvma_mean
+            del vol_gain, vol_loss, vol_abs, vol_sum_gain, vol_sum_loss, vol_sum_abs
+            gc.collect()
+            
+        return pd.DataFrame(features, index=self.data.index)
+    
+    def _calc_rolling_corr(self, series1: pd.Series, series2: pd.Series, window: int) -> pd.Series:
+        """
+        优化的滚动相关系数计算
+        避免循环和多次concat，直接使用groupby+rolling
+        
+        Parameters:
+        -----------
+        series1 : pd.Series
+            第一个序列
+        series2 : pd.Series
+            第二个序列
+        window : int
+            窗口大小
+            
+        Returns:
+        --------
+        pd.Series
+            滚动相关系数
+        """
+        # 使用groupby确保按symbol分组计算
+        result = series1.groupby(level=1).rolling(window, min_periods=1).corr(series2)
+        
+        # 处理MultiIndex返回值
+        if isinstance(result.index, pd.MultiIndex) and result.index.nlevels == 3:
+            # 移除额外的层级
+            result.index = result.index.droplevel(0)
+        
+        return result
+    
+    @staticmethod
+    def _calc_rsquare(y):
+        """计算R方值"""
+        if len(y) < 2:
+            return np.nan
+        x = np.arange(len(y))
+        slope, intercept = np.polyfit(x, y, 1)
+        y_pred = slope * x + intercept
+        ss_res = np.sum((y - y_pred) ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        return 1 - (ss_res / (ss_tot + 1e-12))
+    
+    @staticmethod
+    def _calc_resi(y):
+        """计算线性回归残差"""
+        if len(y) < 2:
+            return np.nan
+        x = np.arange(len(y))
+        slope, intercept = np.polyfit(x, y, 1)
+        y_pred = slope * x + intercept
+        return y[-1] - y_pred[-1]

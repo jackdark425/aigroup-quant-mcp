@@ -1,5 +1,10 @@
 """
 回测引擎
+
+优化内容：
+1. 预先缓存MultiIndex数据切片，避免重复索引查找
+2. 使用字典缓存提升数据访问速度
+3. 向量化操作替代循环访问
 """
 import pandas as pd
 import numpy as np
@@ -52,6 +57,10 @@ class BacktestEngine:
         """
         dates = predictions.index.get_level_values(0).unique()
         
+        # 优化：预先构建数据访问缓存
+        pred_cache = self._build_prediction_cache(predictions)
+        price_cache = self._build_price_cache(prices)
+        
         current_capital = self.initial_capital
         current_positions = {}
         
@@ -59,32 +68,37 @@ class BacktestEngine:
         returns_series = []
         
         for i, date in enumerate(dates[:-holding_period]):
-            # 获取当期预测
-            pred_slice = predictions.xs(date, level=0)
+            # 使用缓存获取当期预测
+            pred_dict = pred_cache.get(date, {})
+            
+            if not pred_dict:
+                continue
             
             # 选择TopK
-            topk_stocks = pred_slice.nlargest(k).index.tolist()
+            topk_items = sorted(pred_dict.items(), key=lambda x: x[1], reverse=True)[:k]
+            topk_stocks = [item[0] for item in topk_items]
             
             # 平仓
             if current_positions:
+                date_prices = price_cache.get(date, {})
                 for symbol, shares in current_positions.items():
-                    try:
-                        sell_price = prices.loc[(date, symbol), 'close']
+                    sell_price = date_prices.get(symbol)
+                    if sell_price is not None:
                         # 考虑滑点和手续费
                         sell_price = sell_price * (1 - self.slippage)
                         sell_value = shares * sell_price
                         commission_fee = sell_value * self.commission
                         current_capital += (sell_value - commission_fee)
-                    except KeyError:
-                        continue
                 
                 current_positions = {}
             
             # 开仓
             position_value = current_capital / k
+            date_prices = price_cache.get(date, {})
+            
             for symbol in topk_stocks:
-                try:
-                    buy_price = prices.loc[(date, symbol), 'close']
+                buy_price = date_prices.get(symbol)
+                if buy_price is not None:
                     # 考虑滑点和手续费
                     buy_price = buy_price * (1 + self.slippage)
                     shares = int(position_value / buy_price)
@@ -94,19 +108,16 @@ class BacktestEngine:
                         commission_fee = cost * self.commission
                         current_capital -= (cost + commission_fee)
                         current_positions[symbol] = shares
-                except KeyError:
-                    continue
             
             # 计算持仓市值
             next_date = dates[i + holding_period]
+            next_prices = price_cache.get(next_date, {})
             position_market_value = 0
             
             for symbol, shares in current_positions.items():
-                try:
-                    price = prices.loc[(next_date, symbol), 'close']
+                price = next_prices.get(symbol)
+                if price is not None:
                     position_market_value += shares * price
-                except KeyError:
-                    continue
             
             total_value = current_capital + position_market_value
             portfolio_values.append({
@@ -133,19 +144,61 @@ class BacktestEngine:
         
         return metrics
     
+    def _build_prediction_cache(self, predictions: pd.Series) -> Dict[pd.Timestamp, Dict]:
+        """
+        构建预测值缓存
+        
+        Args:
+            predictions: 预测序列（MultiIndex: datetime, symbol）
+            
+        Returns:
+            {date: {symbol: prediction}}
+        """
+        cache = {}
+        for (date, symbol), value in predictions.items():
+            if date not in cache:
+                cache[date] = {}
+            cache[date][symbol] = value
+        return cache
+    
+    def _build_price_cache(self, prices: pd.DataFrame) -> Dict[pd.Timestamp, Dict]:
+        """
+        构建价格缓存
+        
+        Args:
+            prices: 价格DataFrame（MultiIndex: datetime, symbol）
+            
+        Returns:
+            {date: {symbol: close_price}}
+        """
+        cache = {}
+        if 'close' in prices.columns:
+            for (date, symbol), row in prices.iterrows():
+                if date not in cache:
+                    cache[date] = {}
+                cache[date][symbol] = row['close']
+        return cache
+    
     def _annualize_return(self, returns: np.ndarray) -> float:
         """年化收益率"""
+        if len(returns) == 0:
+            return 0.0
         cum_return = (1 + returns).prod() - 1
         n_periods = len(returns)
         return (1 + cum_return) ** (252 / n_periods) - 1
     
     def _calculate_sharpe(self, returns: np.ndarray, rf: float = 0.03) -> float:
         """夏普比率"""
+        if len(returns) == 0 or returns.std() == 0:
+            return 0.0
         excess_return = returns.mean() * 252 - rf
         return excess_return / (returns.std() * np.sqrt(252))
     
     def _calculate_max_drawdown(self, portfolio_values: List[Dict]) -> float:
         """最大回撤"""
+        if not portfolio_values:
+            return 0.0
+            
         values = [pv['value'] for pv in portfolio_values]
         peak = values[0]
         max_dd = 0
