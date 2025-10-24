@@ -62,19 +62,18 @@ class DataLoader:
             try:
                 # 检测数据格式
                 detected_format = self.converter.detect_data_format(raw_df)
-                if detected_format != 'standard':
-                    print(f"检测到数据格式: {detected_format}，正在转换为标准格式...")
+                if detected_format != 'standard' and detected_format != 'unknown':
+                    # 转换为标准格式
                     raw_df = self.converter.convert_to_standard_format(
                         raw_df,
                         source_format=detected_format,
                         target_symbol=target_symbol
                     )
-                    print("数据格式转换完成！")
                     conversion_occurred = True
             except Exception as e:
-                print(f"数据格式转换失败: {e}")
-                print("尝试使用原始格式加载...")
                 # 如果转换失败，回退到原始方法
+                # 不使用print避免Windows编码问题
+                conversion_occurred = False
 
         # 根据是否进行了转换来决定使用的列名
         if conversion_occurred:
@@ -90,16 +89,10 @@ class DataLoader:
             if expected_symbol_col not in raw_df.columns:
                 # 如果没有股票代码列，但用户提供了target_symbol，直接使用
                 if target_symbol:
-                    print(f"原始数据缺少股票代码列，将使用指定的股票代码: {target_symbol}")
                     raw_df[expected_symbol_col] = target_symbol
                 else:
-                    # 如果用户也没有提供，使用默认股票代码掩码
+                    # 如果用户也没有提供，使用默认股票代码
                     default_symbol = "DEFAULT_STOCK"
-                    print(f"未找到股票代码列且未指定target_symbol，使用默认股票代码: {default_symbol}")
-                    available_cols = [col for col in raw_df.columns if '股票' in col or '代码' in col or 'symbol' in col.lower()]
-                    print(f"可用列: {raw_df.columns.tolist()}")
-                    if available_cols:
-                        print(f"建议股票代码列名: {available_cols}")
                     raw_df[expected_symbol_col] = default_symbol
 
         # 确保日期列存在且格式正确
@@ -114,9 +107,8 @@ class DataLoader:
             if target_symbol:
                 raw_df[expected_symbol_col] = target_symbol
             else:
-                # 使用默认股票代码掩码，避免报错
+                # 使用默认股票代码，避免报错
                 default_symbol = "DEFAULT_STOCK"
-                print(f"未找到股票代码列且未指定target_symbol，使用默认股票代码: {default_symbol}")
                 raw_df[expected_symbol_col] = default_symbol
 
         # 设置MultiIndex

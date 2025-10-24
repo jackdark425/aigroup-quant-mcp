@@ -1,12 +1,10 @@
 {
   "mcpServers": {
     "aigroup-quant-mcp": {
-      "command": "python",
+      "command": "uvx",
       "args": [
-        "-m",
-        "quantanalyzer.mcp"
+        "aigroup-quant-mcp"
       ],
-      "cwd": "d:/aigroup-quant-mcp/aigroup-quant-mcp",
       "env": {},
       "alwaysAllow": [
         "load_csv_data",
@@ -14,7 +12,12 @@
         "generate_alpha158",
         "evaluate_factor_ic",
         "list_factors",
-        "quick_start_lstm"
+        "quick_start_lstm",
+        "train_lstm_model",
+        "train_gru_model",
+        "train_transformer_model",
+        "predict_with_model",
+        "list_models"
       ]
     }
   }

@@ -39,13 +39,82 @@ class DataFormatConverter:
             'amount_unit': '元'
         }
     }
+    
+    # 列名映射表 - 支持多种变体的列名自动识别
+    COLUMN_NAME_VARIANTS = {
+        'datetime': ['交易日期', '日期', 'date', 'datetime', 'time', '时间', 'trade_date', 'trading_date'],
+        'symbol': ['股票代码', '代码', 'symbol', 'code', 'stock_code', 'ts_code', '合约代码', 'contract_code', 'instrument'],
+        'open': ['开盘', '开盘价', 'open', 'Open', 'OPEN', 'open_price', '开'],
+        'high': ['最高', '最高价', 'high', 'High', 'HIGH', 'high_price', '高'],
+        'low': ['最低', '最低价', 'low', 'Low', 'LOW', 'low_price', '低'],
+        'close': ['收盘', '收盘价', 'close', 'Close', 'CLOSE', 'close_price', '收'],
+        'volume': ['成交量', '量', 'volume', 'Volume', 'VOLUME', 'vol', 'Vol', 'VOL', 'trade_volume'],
+        'amount': ['成交额', '成交额(万元)', '额', 'amount', 'Amount', 'AMOUNT', 'turnover', 'trade_amount']
+    }
 
     def __init__(self):
         self.detected_format = None
+        self._build_reverse_mapping()
+    
+    def _build_reverse_mapping(self):
+        """构建反向映射表，用于快速查找标准列名"""
+        self.reverse_mapping = {}
+        for standard_name, variants in self.COLUMN_NAME_VARIANTS.items():
+            for variant in variants:
+                # 存储原始名称
+                self.reverse_mapping[variant] = standard_name
+                # 存储去除空格后的名称
+                self.reverse_mapping[variant.strip()] = standard_name
+                # 存储小写版本
+                self.reverse_mapping[variant.lower().strip()] = standard_name
 
+    def _normalize_column_name(self, col_name: str) -> str:
+        """
+        标准化列名，去除空格并转小写
+        
+        Args:
+            col_name: 原始列名
+            
+        Returns:
+            标准化后的列名
+        """
+        return col_name.strip().lower() if isinstance(col_name, str) else str(col_name)
+    
+    def _find_standard_column(self, columns: list, standard_name: str) -> Optional[str]:
+        """
+        从列名列表中找到对应标准名称的列
+        
+        Args:
+            columns: 列名列表
+            standard_name: 标准列名（如'open', 'close'等）
+            
+        Returns:
+            找到的原始列名，如果未找到则返回None
+        """
+        variants = self.COLUMN_NAME_VARIANTS.get(standard_name, [])
+        
+        # 首先尝试精确匹配
+        for col in columns:
+            if col in variants:
+                return col
+        
+        # 然后尝试去空格匹配
+        for col in columns:
+            col_stripped = col.strip()
+            if col_stripped in variants:
+                return col
+        
+        # 最后尝试不区分大小写匹配
+        for col in columns:
+            col_normalized = self._normalize_column_name(col)
+            if col_normalized in [self._normalize_column_name(v) for v in variants]:
+                return col
+        
+        return None
+    
     def detect_data_format(self, df: pd.DataFrame) -> str:
         """
-        自动检测数据格式
+        自动检测数据格式（支持智能列名识别）
 
         Args:
             df: 输入的DataFrame
@@ -54,23 +123,35 @@ class DataFormatConverter:
             检测到的格式名称
         """
         columns = df.columns.tolist()
-
-        # 检测aigroup-market格式
-        # 检查核心必需列（股票代码列是可选的）
-        core_indicators = ['交易日期', '开盘', '收盘', '最高', '最低', '成交量']
-        if not all(col in columns for col in core_indicators):
-            pass  # 不满足基本条件，继续检查其他格式
-        else:
-            # 检查成交额列（可能是'成交额'或'成交额(万元)'）
-            has_amount_column = '成交额' in columns or '成交额(万元)' in columns
-            if has_amount_column:
+        
+        # 尝试智能识别必需的列
+        required_columns = ['datetime', 'open', 'high', 'low', 'close', 'volume']
+        found_columns = {}
+        
+        for required_col in required_columns:
+            found_col = self._find_standard_column(columns, required_col)
+            if found_col:
+                found_columns[required_col] = found_col
+        
+        # 如果找到了所有必需列，判断是否为标准格式或需要转换的格式
+        if len(found_columns) == len(required_columns):
+            # 检查是否已经是标准格式
+            standard_columns = ['datetime', 'symbol', 'open', 'high', 'low', 'close', 'volume']
+            if all(col in columns for col in standard_columns):
+                return 'standard'
+            
+            # 检查是否包含中文列名（说明是aigroup_market格式或类似格式）
+            has_chinese = any(
+                any('\u4e00' <= char <= '\u9fff' for char in str(col))
+                for col in found_columns.values()
+            )
+            
+            if has_chinese:
                 return 'aigroup_market'
-
-        # 检测标准格式
-        standard_indicators = ['datetime', 'symbol', 'open', 'high', 'low', 'close', 'volume']
-        if all(col in columns for col in standard_indicators):
-            return 'standard'
-
+            else:
+                # 英文列名但不是标准格式，也归类为需要转换的格式
+                return 'aigroup_market'  # 使用相同的转换逻辑
+        
         # 无法识别的格式
         return 'unknown'
 
@@ -131,7 +212,7 @@ class DataFormatConverter:
         target_symbol: Optional[str] = None
     ) -> pd.DataFrame:
         """
-        执行格式转换
+        执行格式转换（使用智能列名识别）
 
         Args:
             df: 原始数据
@@ -141,72 +222,73 @@ class DataFormatConverter:
         Returns:
             转换后的DataFrame
         """
-        # 重命名列
-        column_mapping = {
-            format_config['date_column']: 'datetime',
-            format_config['open_column']: 'open',
-            format_config['high_column']: 'high',
-            format_config['low_column']: 'low',
-            format_config['close_column']: 'close',
-            format_config['volume_column']: 'volume',
-        }
-
-        # 添加股票代码列
-        if format_config['symbol_column'] in df.columns:
-            column_mapping[format_config['symbol_column']] = 'symbol'
-
+        df = df.copy()
+        columns = df.columns.tolist()
+        
+        # 使用智能列名识别构建映射
+        column_mapping = {}
+        
+        # 必需的列
+        required_standards = ['datetime', 'open', 'high', 'low', 'close', 'volume']
+        for standard_name in required_standards:
+            found_col = self._find_standard_column(columns, standard_name)
+            if found_col:
+                column_mapping[found_col] = standard_name
+            else:
+                raise ValueError(f"缺少必需的列: {standard_name} (未找到对应的列名变体)")
+        
+        # 可选的股票代码列
+        symbol_col = self._find_standard_column(columns, 'symbol')
+        if symbol_col:
+            column_mapping[symbol_col] = 'symbol'
+        
+        # 可选的成交额列
+        amount_col = self._find_standard_column(columns, 'amount')
+        if amount_col:
+            column_mapping[amount_col] = 'amount'
+        
         # 重命名列
         df = df.rename(columns=column_mapping)
-
-        # 确保必需的列存在
-        required_columns = ['datetime', 'open', 'high', 'low', 'close', 'volume']
-        for col in required_columns:
-            if col not in df.columns:
-                raise ValueError(f"缺少必需的列: {col}")
-
+        
         # 处理股票代码
         if target_symbol:
             df['symbol'] = target_symbol
         elif 'symbol' not in df.columns:
             # 如果没有股票代码列，使用默认值
             df['symbol'] = 'DEFAULT'
-
-        # 转换日期格式
-        df['datetime'] = pd.to_datetime(df['datetime'], format=format_config['date_format'])
-
+        
+        # 转换日期格式 - 尝试多种格式
+        try:
+            # 首先尝试配置的格式
+            df['datetime'] = pd.to_datetime(df['datetime'], format=format_config.get('date_format', '%Y%m%d'))
+        except:
+            # 如果失败，让pandas自动推断
+            df['datetime'] = pd.to_datetime(df['datetime'])
+        
         # 转换数据类型
         numeric_columns = ['open', 'high', 'low', 'close', 'volume']
         for col in numeric_columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-
-        # 处理成交额列（如果存在）
-        # 检查成交额列的各种可能名称
-        amount_column_names = ['amount', '成交额', '成交额(万元)']
-        amount_column = None
-
-        for col_name in amount_column_names:
-            if col_name in df.columns:
-                amount_column = col_name
-                break
-
-        if amount_column:
-            df['amount'] = pd.to_numeric(df[amount_column], errors='coerce')
-
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # 处理成交额列
+        if 'amount' in df.columns:
+            df['amount'] = pd.to_numeric(df['amount'], errors='coerce')
             # 如果源格式是万元，需要转换为元
-            if format_config['amount_unit'] == '万元':
+            if format_config.get('amount_unit') == '万元':
                 df['amount'] = df['amount'] * 10000
         else:
             # 如果没有成交额列，设置为NaN
             df['amount'] = np.nan
-
+        
         # 重新排列列的顺序
         final_columns = ['datetime', 'symbol', 'open', 'high', 'low', 'close', 'volume', 'amount']
         existing_columns = [col for col in final_columns if col in df.columns]
         df = df[existing_columns]
-
+        
         # 排序
         df = df.sort_values(['datetime', 'symbol']).reset_index(drop=True)
-
+        
         return df
 
     def validate_converted_data(self, df: pd.DataFrame) -> Dict:

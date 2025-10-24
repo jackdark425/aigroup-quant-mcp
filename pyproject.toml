@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aigroup-quant-mcp"
-version = "1.0.0"
+version = "1.0.2"
 description = "AI Group Quantitative Analysis MCP Service"
 readme = "README.md"
 authors = [{name = "AI Group", email = "ai.group@example.com"}]
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.8"
 dynamic = ["classifiers"]
 dependencies = [
