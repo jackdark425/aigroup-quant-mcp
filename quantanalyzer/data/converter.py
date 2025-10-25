@@ -1,6 +1,12 @@
 """
 数据格式转换器
 用于将不同来源的股票数据转换为统一格式
+
+功能特性：
+1. 智能列名识别 - 自动识别多种列名变体（中英文、大小写等）
+2. 自动删除空列 - 转换过程中自动移除完全为空的列（如空的持仓量列）
+3. 多编码支持 - 自动尝试 UTF-8、GBK、GB18030 等编码
+4. 灵活的日期格式 - 支持多种日期格式自动转换
 """
 
 import pandas as pd
@@ -223,6 +229,19 @@ class DataFormatConverter:
             转换后的DataFrame
         """
         df = df.copy()
+        
+        # 🔥 新增：自动删除完全为空的列
+        # 检测每列的空值情况
+        empty_columns = []
+        for col in df.columns:
+            # 检查列是否完全为空（全是NaN或空字符串）
+            if df[col].isna().all() or (df[col].astype(str).str.strip() == '').all():
+                empty_columns.append(col)
+        
+        # 删除空列
+        if empty_columns:
+            df = df.drop(columns=empty_columns)
+        
         columns = df.columns.tolist()
         
         # 使用智能列名识别构建映射
@@ -277,14 +296,21 @@ class DataFormatConverter:
             # 如果源格式是万元，需要转换为元
             if format_config.get('amount_unit') == '万元':
                 df['amount'] = df['amount'] * 10000
-        else:
-            # 如果没有成交额列，设置为NaN
-            df['amount'] = np.nan
+        # 🔥 修改：不再创建全是NaN的amount列
         
-        # 重新排列列的顺序
+        # 重新排列列的顺序，只保留实际存在的列
         final_columns = ['datetime', 'symbol', 'open', 'high', 'low', 'close', 'volume', 'amount']
         existing_columns = [col for col in final_columns if col in df.columns]
         df = df[existing_columns]
+        
+        # 🔥 新增：删除转换后仍然全是NaN的列（二次清理）
+        columns_to_drop = []
+        for col in df.columns:
+            if col not in ['datetime', 'symbol'] and df[col].isna().all():
+                columns_to_drop.append(col)
+        
+        if columns_to_drop:
+            df = df.drop(columns=columns_to_drop)
         
         # 排序
         df = df.sort_values(['datetime', 'symbol']).reset_index(drop=True)

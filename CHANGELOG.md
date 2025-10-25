@@ -1,433 +1,466 @@
-# QuantAnalyzer 更新日志
+## [1.0.27] - 2025-01-25 🚀 Data Merge & ML Training Enhancement
 
-所有重要更改都将记录在此文件中。
+### ✨ New Feature
+- **新增 `merge_factor_data` 工具**: 解决因子数据无法直接用于机器学习模型训练的问题
+  - 🔗 **智能合并**: 自动对齐Alpha158因子数据和原始价格数据的索引
+  - 📊 **数据验证**: 确保两个数据集有时间重叠，防止数据不匹配错误
+  - 💾 **灵活导出**: 支持CSV/JSON格式导出合并后的完整数据集
+  - 🤖 **完整兼容**: 合并后的数据可直接用于 `train_ml_model` 训练
+  - 📈 **工作流程**: preprocess_data → generate_alpha158 → merge_factor_data → train_ml_model
 
-格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
-版本遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+### 🔧 Core Implementation
+- **智能索引对齐**: 自动处理因子数据和价格数据的时间索引匹配
+- **数据完整性验证**: 检查数据重叠范围，提供详细的错误提示和建议
+- **内存优化**: 高效的DataFrame合并，避免不必要的内存消耗
+- **错误处理**: 完善的异常处理和用户友好的错误信息
+
+### 📚 Documentation
+- **完整使用指南**: 新增 `docs/MERGE_FACTOR_DATA_GUIDE.md`
+  - 详细的问题背景和解决方案说明
+  - 完整的工作流程和使用示例
+  - 常见问题解答和最佳实践
+  - 数据结构说明和技术细节
+- **主文档更新**: 更新README.md包含新工具说明和示例
+- **Schema文档**: 完整的参数说明、类型定义和使用示例
+
+### 🎯 Impact
+- **解决关键限制**: 现在可以直接使用Alpha158因子训练机器学习模型
+- **完整工作流**: 从数据加载到模型训练的完整量化分析流程
+- **用户体验**: 消除数据格式不匹配的困惑，提供清晰的指导
+- **向后兼容**: 不影响现有功能，新增工具可选使用
+
+### 🧪 Testing & Validation
+- ✅ 因子数据和价格数据合并测试
+- ✅ 索引对齐和数据验证测试
+- ✅ CSV/JSON导出功能测试
+- ✅ 与train_ml_model的集成测试
+- ✅ 错误处理和边界情况测试
+
+### 📝 Technical Details
+- 新增文件: `docs/MERGE_FACTOR_DATA_GUIDE.md`
+- 修改文件:
+  - `quantanalyzer/mcp/handlers.py` - 添加merge_factor_data处理函数
+  - `quantanalyzer/mcp/schemas.py` - 添加工具schema定义
+  - `quantanalyzer/mcp/server.py` - 注册新工具
+  - `README.md` - 更新文档说明
+- 代码质量: 完整的类型提示、错误处理、文档字符串
 
 ---
-## [1.0.2] - 2025-10-24
 
-### 🐛 Bug修复
+## [1.0.26] - 2025-01-25 📦 Package Enhancement
 
-#### 中英文列名自动转换功能增强
-- **智能列名识别** - 支持多种列名变体自动识别和转换
-  - 支持带"价"字的列名：开盘价、收盘价、最高价、最低价
-  - 支持带空格的列名：`交易日期 `、` 股票代码`
-  - 支持大小写混合：Open、Close、High、Low
-  - 支持合约代码：合约代码、contract_code
-- **模糊匹配算法** - 三级匹配机制确保最大兼容性
-  - 精确匹配 → 去空格匹配 → 不区分大小写匹配
-- **自动格式检测** - 无需手动指定数据格式，自动识别
-
-#### 技术细节
-- 修改文件：`quantanalyzer/data/converter.py`
-- 新增：`COLUMN_NAME_VARIANTS` 列名变体映射表
-- 新增：`_find_standard_column()` 智能列名查找方法
-- 改进：`detect_data_format()` 格式自动检测
-- 改进：`_convert_format()` 转换逻辑优化
-
-#### 向后兼容
-- ✅ 100% 向后兼容v1.0.1
-- ✅ 所有原有列名格式继续支持
-- ✅ 仅增加新格式支持，无破坏性变更
-
-### ✅ 验证测试
-- ✅ 期货数据（开盘价、收盘价等）：转换成功
-- ✅ 带空格列名：转换成功
-- ✅ 大小写混合：转换成功
-- ✅ 合约代码：转换成功
-- ✅ MCP工具集成：完全兼容
-
-### 📦 影响范围
-- 受益工具：`load_csv_data`, `generate_alpha158`, 所有数据加载相关工具
-- 用户体验：无需手动修改CSV文件，直接加载各种格式数据
-- 兼容性：Windows/Linux/Mac全平台支持
+### 📦 Package Updates
+- **依赖优化**: 进一步优化依赖配置，提升安装和启动速度
+- **文档完善**: 更新README和使用指南
+- **代码质量**: 改进错误处理和用户体验
 
 ---
-## [1.0.1] - 2025-10-23
 
-### 🐛 Bug修复
+## [1.0.23] - 2024-10-24 🐛 IC Evaluation Fix
 
-#### 数据加载
-- **修复中文列名自动转换** - 解决Windows环境下的编码问题
-  - 移除可能导致GBK编码错误的print语句
-  - 优化DataLoader的自动格式检测逻辑
-  - 改进错误处理，转换失败时静默回退
+### 修复
+- **修复evaluate_factor_ic的"Must specify axis=0 or 1"错误**
+  - 问题：处理DataFrame类型的价格或因子数据时未正确转换为Series
+  - 症状：IC评估时报错"Must specify axis=0 or 1"
+  - 解决：添加DataFrame到Series的自动转换逻辑
+  - 影响：Alpha158等多列因子现在可以正常评估IC
+
+### 改进
+- 更新启动日志版本号到v1.0.23
+- 优化因子数据类型处理逻辑
+
+---
+
+## [1.0.19] - 2024-10-24 🚀 Lightweight Version
+
+### 移除
+- 移除所有深度学习相关功能（LSTM/GRU/Transformer模型训练工具）
+- 移除quick_start_lstm快捷工具
+- 完全移除torch依赖引用，解决uvx启动卡住问题
+
+### 改进  
+- MCP服务专注于核心数据处理和因子分析功能
+- 启动速度进一步优化，从"安装36包后卡住"到"秒级启动"
+- 服务更轻量、更稳定、更专注
+
+### ✅ 可用功能
+- preprocess_data - 数据预处理和清洗
+- calculate_factor - 单因子计算
+- generate_alpha158 - Alpha158因子生成  
+- apply_processor_chain - 数据处理器链（智能标准化）
+- evaluate_factor_ic - 因子IC评估（含报告生成）✨ v1.0.16新增
+- list_factors - 查看已加载数据和因子
+
+### 📝 说明
+深度学习功能已移除，专注于核心的数据处理和因子分析。如需深度学习功能，建议使用其他专业工具。
+
+---
+
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [1.0.18] - 2024-10-24 🐛 Critical Import Fix
+
+### 🐛 Critical Bug Fix
+- **修复torch导入错误导致uvx启动失败**
+  - 问题：虽然torch已移到可选依赖，但代码仍强制导入
+  - 症状：`uvx aigroup-quant-mcp` 报错 `ModuleNotFoundError: No module named 'torch'`
+  - 修复：深度学习模型导入改为可选，无torch时提供友好错误提示
+  - 影响文件：quantanalyzer/model/__init__.py
+
+### 💡 用户体验改进
+- 无torch时给出清晰的安装提示
+- 基础MCP功能无需torch即可正常使用
+- 需要深度学习功能时按需安装
+
+### 🎯 Impact
+- ✅ uvx aigroup-quant-mcp 现在可以正常启动
+- ✅ 基础功能（数据处理、因子计算、因子评估）完全可用
+- ✅ 深度学习功能按需安装
+
+---
+
+## [1.0.17] - 2024-10-24 ⚡ Performance Optimization
+
+### ⚡ Performance Improvement
+- **优化依赖配置，解决uvx安装卡住问题**
+  - 问题：torch>=2.0.0 等重量级依赖导致uvx安装极慢或卡死
+  - 解决方案：将重量级依赖移到可选依赖
+  - 核心依赖（必需）：
+    - pandas>=2.0.0
+    - numpy>=1.24.0
+    - scipy>=1.10.0
+    - mcp>=1.0.0
+  - 可选依赖：
+    - `[ml]`: lightgbm, xgboost, scikit-learn（机器学习模型）
+    - `[dl]`: torch（深度学习模型）
+    - `[full]`: 所有机器学习和深度学习依赖
+    - `[viz]`: matplotlib（可视化）
+    - `[dev]`: pytest（开发测试）
+
+### 📦 安装方式
+
+```bash
+# 基础安装（推荐，快速）
+uvx aigroup-quant-mcp
+
+# 或使用pip基础安装
+pip install aigroup-quant-mcp
+
+# 安装机器学习支持
+pip install aigroup-quant-mcp[ml]
+
+# 安装深度学习支持
+pip install aigroup-quant-mcp[dl]
+
+# 完整安装（包含所有功能）
+pip install aigroup-quant-mcp[full]
+```
+
+### 🎯 Impact
+- **显著提升安装速度**：基础安装从几分钟降至几秒
+- **按需安装**：用户可根据需求选择安装哪些依赖
+- **向后兼容**：不影响现有功能使用
+
+---
+
+## [1.0.16] - 2024-10-24 🐛 Critical Bug Fix & Feature Enhancement
+
+### 🐛 Critical Bug Fix
+- **修复evaluate_factor_ic工具返回NoneType错误**
+  - 问题根源：函数定义与实现被错误分离
+    - 第506-508行：只有空的函数定义
+    - 第609-825行：实际实现被错误嵌套在handle_quick_start_lstm函数内部
+  - 修复方案：
+    - ✅ 将函数实现合并到正确位置（506-724行）
+    - ✅ 删除错误嵌套的重复代码（826-942行）
+    - ✅ 函数现在正常返回评估结果
+  - 影响范围：所有使用evaluate_factor_ic工具的用户
+  - 修复文件：quantanalyzer/mcp/handlers.py
+
+### ✨ New Feature
+- **因子评估报告生成功能**
+  - 新增 `report_path` 可选参数
+  - 自动生成Markdown格式的详细评估报告
+  - 报告内容包括：
+    - 📋 基本信息（因子名称、数据源、评估方法、时间）
+    - 📊 IC指标（IC均值、IC标准差、ICIR、IC正值占比）
+    - ⭐ 因子质量评级和推荐建议
+    - 📖 详细指标解读（IC均值、ICIR、IC正值占比）
+    - 🎯 预测方向和预测能力分析
+    - 💡 使用建议和后续步骤指引
+  - 报告特点：
+    - Markdown格式，易读易分享
+    - UTF-8编码，兼容性好
+    - 自动创建目录
+    - 可作为策略文档
+
+### 📝 Schema Updates
+- 更新 `evaluate_factor_ic` 工具Schema
+- 添加 `report_path` 参数说明和使用示例
+- 完善参数文档和最佳实践指引
+
+### 🎯 Impact
+- **强烈建议立即升级**：修复了因子评估功能完全无法使用的严重bug
+- 向后兼容：report_path为可选参数，不影响现有调用
+- 提升用户体验：支持生成专业的评估报告
+
+### 📚 Technical Details
+- 修复文件：
+  - quantanalyzer/mcp/handlers.py (506-724行)
+  - quantanalyzer/mcp/schemas.py (1018-1050行)
+- 代码质量：函数结构清晰，无重复代码
+- 测试状态：核心功能修复完成，可正常使用
+
+---
+
+## [1.0.15] - 2024-10-24 📚 Documentation Update
+
+### 📝 Documentation
+- **更新apply_processor_chain的MCP Schema文档**
+  - 明确说明智能标准化功能和使用方法
+  - 添加详细的处理器说明和适用场景
+  - 更新示例展示单商品/多商品的智能处理
+  - 强调推荐直接使用CSZScoreNorm，系统自动优化
+
+### 💡 User Guidance
+- 用户现在可以通过MCP工具描述了解智能标准化功能
+- 明确推荐使用CSZScoreNorm，无需手动判断数据类型
+- 提供更清晰的使用示例和预期结果
+
+### 🎯 Impact
+- 提升用户体验，避免传入错误参数
+- 文档与代码功能保持同步
+- 帮助用户正确使用智能标准化功能
+
+---
+
+## [1.0.14] - 2024-10-24 🎯 Smart Normalization
+
+### 🚀 Major Feature
+- **智能标准化功能**: 自动识别单商品/多商品数据并选择最佳标准化方法
+  - 自动检测数据中的商品数量（symbol_count）
+  - 单商品数据：CSZScoreNorm **自动切换** 为 ZScoreNorm
+  - 多商品数据：CSZScoreNorm **正常使用**
+  - 返回详细的智能调整信息
   
-#### 功能说明
-- 现在可以直接加载aigroup-market-mcp下载的中文格式CSV文件
-- 自动检测并转换中文列名（交易日期、开盘、收盘等）为英文标准格式
-- 无需手动转换，提升用户体验
+### 🐛 Critical Bug Fix
+- **修复CSZScoreNorm在单商品数据上导致100% NaN的问题**
+  - 问题原因：CSZScoreNorm是截面标准化，需要多个商品才能计算标准差
+  - 单商品时每个时间点只有1个样本，标准差为NaN
+  - 现在自动切换为ZScoreNorm（时间序列标准化）避免此问题
 
-### ✅ 验证测试
-- ✅ 成功加载含中文列名的CSV文件（215条平安银行数据）
-- ✅ 自动转换: 交易日期→datetime, 开盘→open, 收盘→close等
-- ✅ 数据质量: 0%缺失值，质量评分优秀
-- ✅ Windows/Linux/Mac跨平台兼容性验证
+### 💡 User Experience
+- **用户无需关心数据类型**：直接使用CSZScoreNorm，系统自动优化
+- **透明性**：明确告知用户发生了什么调整及原因
+- **向后兼容**：API保持不变，现有代码无需修改
 
-### 📦 影响范围
-- 修改文件: `quantanalyzer/data/loader.py`
-- 向后兼容: ✅ 100%兼容v1.0.0
-- 破坏性变更: 无
+### 📊 Smart Decision Logic
+| 数据类型 | 请求Processor | 实际应用 | 原因 |
+|---------|--------------|---------|------|
+| 单商品 | CSZScoreNorm | ZScoreNorm | 避免NaN |
+| 多商品 | CSZScoreNorm | CSZScoreNorm | 正常工作 |
+
+### 🧪 Testing
+- ✅ 单商品数据测试：自动切换 + NaN比例0%
+- ✅ 多商品数据测试：保持不变 + NaN比例0%
+- ✅ 完整自动化测试通过
+
+### 📚 Documentation
+- 新增 `BUG_REPORT_CSZScoreNorm.md` - 详细的Bug诊断报告
+- 新增 `SMART_NORMALIZATION_FEATURE.md` - 智能功能实现总结
+- 新增 `diagnose_normalization.py` - 问题诊断脚本
+- 新增 `test_auto_normalization.py` - 自动化测试脚本
+
+### 🎯 Impact
+- 解决了单商品/单股票数据标准化失败的问题
+- 提升用户体验，无需手动选择标准化方法
+- 强烈建议所有用户升级到此版本
 
 ---
-## [3.0.0] - 2025-01-16
 
-### 🎉 Processor系统上线 - 数据清洗与标准化
+## [1.0.13] - 2024-10-24
 
-参考Qlib的Processor架构，实现完整的数据预处理系统。
+### ✨ Feature Enhancement
+- **generate_alpha158导出功能**: 添加因子数据导出支持
+  - 新增 `export_path` 参数：指定导出文件路径
+  - 新增 `export_format` 参数：支持CSV和JSON两种格式
+  - CSV格式便于Excel查看所有158个因子的数值
+  - JSON格式便于程序处理和集成
+  - 返回导出文件信息（路径、大小、格式、因子数量、行数）
 
-### ✨ 新增
+### 🎯 使用场景
+- 直接查看所有158个因子的具体数值
+- 数据质量检查和验证
+- 外部工具进一步分析
+- 因子数据持久化保存
+- 建立因子数据库
 
-#### Processor系统
-- **7个核心Processor** (`quantanalyzer/data/processor.py` 490行)
-  - `CSZScoreNorm` - 截面Z-score标准化（⭐最常用）
-  - `DropnaLabel` - 删除空标签（必须）
-  - `Fillna` - 填充缺失值
-  - `ZScoreNorm` - 时序Z-score标准化
-  - `RobustZScoreNorm` - 鲁棒Z-score（抗异常值）
-  - `MinMaxNorm` - 最小最大归一化
-  - `CSRankNorm` - 截面排名标准化
+### 📝 Documentation
+- 更新 schema 添加导出参数说明
+- 新增 RELEASE_v1.0.13.md 发布说明
+- 完善使用示例和最佳实践
 
-#### 工具类
-- **ProcessorChain** - Processor组合工具
-  - 支持链式调用
-  - Learn/Infer分离
-  - 避免数据泄露
+---
 
-#### MCP工具扩展 (11 → 14个)
-- `apply_processor` - 应用单个Processor清洗数据
-- `create_processor_chain` - 创建Processor处理链
-- `apply_processor_chain` - 应用链式处理（Learn-Transform）
+## [1.0.12] - 2024-10-24
 
-#### 文档
-- `Processor系统详解.md` - 通俗易懂的Processor说明
-- `Processor系统实现总结.md` - 完整实现文档
-- `Qlib_vs_QuantAnalyzer功能对比与扩展建议.md` - 功能路线图
+### 🐛 Critical Bug Fix
+- **修复generate_alpha158的NameError**: 修正了未定义的export_info变量引用
+  - 移除了handlers.py中对不存在变量的错误引用 (第438-439行)
+  - 修复了调用generate_alpha158时的NameError错误
+  - 现在所有7个工具都能正常工作
 
-#### 测试
-- `examples/test_processor.py` - 完整Processor系统测试
+### 技术细节
+- 问题根源: 复制粘贴错误，从preprocess_data复制代码时保留了不必要的export_info引用
+- 影响版本: v1.0.11
+- 修复文件: quantanalyzer/mcp/handlers.py
 
-### 🔧 改进
+### ✅ Verification
+- ✅ generate_alpha158工具现在正常工作
+- ✅ 所有7个工具验证通过
 
-#### 数据处理
-- ✅ Learn/Infer分离机制 - 避免数据泄露
-- ✅ 截面标准化支持 - 消除股票间量纲差异
-- ✅ 灵活的Processor组合 - ProcessorChain
-- ✅ AI驱动数据清洗 - MCP工具集成
+---
 
-#### 代码质量
-- 完整的抽象基类设计
-- 统一的fit/transform接口
-- 兼容sklearn风格
-- 详细的文档字符串
+## [1.0.11] - 2024-10-24
 
-### 📦 核心价值
+### 🐛 Bug Fixes
+- **修复Schema语法错误**: 修正了v1.0.10中导致MCP工具无法加载的语法错误
+  - get_apply_processor_chain_schema函数位置错误
+  - 现在所有7个工具正常显示
 
-#### 性能提升（预期）
-- **IC提升**: +30-50%
-- **夏普比率**: +50-100%
-- **回测/实盘一致性**: +35%
-- **数据泄露风险**: -95%
+### ✅ Verification
+- 验证7个工具全部可用
+- 测试导出功能正常工作
 
-#### 工程价值
-- **代码复用**: +80%
-- **维护成本**: -50%
-- **开发效率**: +40%
+---
 
-### ✅ 测试验证
+## [1.0.10] - 2024-10-24
 
-#### 自动化测试
-```
-✅ 7/7 Processor测试通过
-   - CSZScoreNorm: 截面均值=0 ✓
-   - DropnaLabel: 正确删除空值 ✓
-   - Fillna: 成功填充 ✓
-   - ZScoreNorm: Learn-Transform正常 ✓
-   - RobustZScoreNorm: 鲁棒标准化 ✓
-   - MinMaxNorm: 缩放[0,1] ✓
-   - CSRankNorm: 排名标准化 ✓
+### ✨ Enhancement
+- **apply_processor_chain导出功能**: 添加数据导出支持
+  - 支持CSV格式导出（便于Excel查看）
+  - 支持JSON格式导出（便于程序处理）
+  - 可选参数：export_path、export_format
+  - 返回导出文件信息（路径、大小、格式）
 
-✅ ProcessorChain测试通过
-   - 组合3个Processor
-   - 训练集16条 → 16条
-   - 测试集7条 → 7条
-```
+### 🎯 使用场景
+- 标准化后的因子数据质量检查
+- 导出供外部工具分析
+- 数据持久化保存
+- 调试和验证
 
-#### 效果验证
-```
-CSZScoreNorm处理前:
-  momentum: 均值=10.8, 标准差=30.4, 范围[-1, 90]
+### 🧪 Testing
+- ✅ CSV导出测试
+- ✅ JSON导出测试
+- ✅ 可选导出测试
+
+---
+
+## [1.0.9] - 2024-10-24
+
+### ✨ New Features
+- **apply_processor_chain工具**: 对数据（因子）应用处理器链
+  - 支持7种处理器：CSZScoreNorm、CSZFillna、ProcessInf、ZScoreNorm、RobustZScoreNorm、CSRankNorm、MinMaxNorm
+  - 支持链式处理：可组合多个处理器
+  - 完整的参数配置和错误处理
+
+### 📊 Workflow
+现在可以完成完整的数据→因子→标准化流程：
+1. preprocess_data - 数据预处理
+2. generate_alpha158 - 因子生成
+3. apply_processor_chain - 因子标准化 ⭐ 新增
+4-6. 模型训练、预测、评估（待实现）
+
+### 📚 Documentation
+- 新增 `IMPLEMENTATION_ROADMAP.md` - 完整开发路线图
+- 更新 `QLIB_WORKFLOW_GUIDE.md` - 工作流程指南
+- 新增 `test_processor_chain.py` - 完整测试脚本
+
+### 🧪 Testing
+- ✅ 单处理器测试
+- ✅ 多处理器链测试
+- ✅ 完整工作流程测试
+
+---
+
+## [1.0.8] - 2024-10-24 🔥 Critical Fix
+
+### 🐛 Critical Bug Fix
+- **修复预处理流程错误**: 移除了对原始OHLCV数据的错误标准化
+  - 旧版本错误地在`preprocess_data`中对原始数据进行`CSZScoreNorm`标准化
+  - 现在只进行异常值和缺失值清洗（ProcessInf + CSZFillna）
+  - 标准化应该在因子生成后通过`apply_processor_chain`进行
   
-CSZScoreNorm处理后:
-  momentum: 均值=0.0, 标准差=0.73, 范围[-0.7, 0.7]
+### 📚 Documentation
+- 新增 `QLIB_WORKFLOW_GUIDE.md` - 详细的Qlib工作流程指南
+  - 解释正确的三步流程：数据清洗 → 因子生成 → 因子标准化
+  - 说明为什么不能提前标准化原始数据
+  - 提供错误vs正确流程对比
   
-✅ 成功消除量纲差异
-```
+### 📝 Schema Updates
+- 更新 `preprocess_data` 工具文档
+- 明确标准化应该用于因子而非原始数据
 
-### 🐛 修复
-- 修复：Fillna的pandas未来警告
-- 优化：JSON序列化兼容性
-
-### 🔄 向后兼容
-- ✅ 100% 向后兼容v2.0
-- ✅ 原有功能无需修改
-- ✅ Processor为可选使用
+### ⚠️ Impact
+此版本修复了一个严重的数据处理错误，强烈建议所有v1.0.7用户立即升级。
 
 ---
 
+## [1.0.7] - 2024-10-24
 
-## [2.0.0] - 2025-01-16
+### 🔄 Breaking Changes
+- **重命名工具**: `load_csv_data` → `preprocess_data`
+  - 更准确地反映数据清洗功能
+  - 所有引用需要更新为新名称
 
-### 🎉 重大功能扩展
+### ✨ New Features
+- **数据导出功能**: 清洗后的数据自动保存到本地
+  - 默认导出路径: `./exports/{data_id}_cleaned_{timestamp}.csv`
+  - 支持自定义导出路径通过 `export_path` 参数
+  - 返回导出文件信息（路径、大小）
+  
+### 📝 Parameters
+- 新增 `export_path` 参数用于自定义导出路径
+- 保留 `auto_clean` 参数控制是否清洗数据
 
-参考Qlib架构，全面扩展因子库和模型能力。
+### 🐛 Bug Fixes
+- 优化数据清洗流程
+- 改进错误处理和反馈
 
-### ✨ 新增
+### 📚 Documentation
+- 更新工具描述和使用示例
+- 添加 RELEASE_v1.0.7.md 发布说明
+- 添加 REFACTORING_SUMMARY.md 重构总结
+- 创建测试脚本 test_preprocess_data.py
 
-#### 因子库
-- **Alpha158因子库** - 完整的158个技术指标因子
-  - K线形态因子：9个 (KMID, KLEN, KUP, KLOW等)
-  - 价格因子：5个 (OPEN, HIGH, LOW, CLOSE, VWAP)
-  - 成交量因子：5个 (VOLUME系列)
-  - 滚动统计因子：139个 (ROC, MA, STD, CORR等)
-- 新增模块：`quantanalyzer/factor/alpha158.py`
-- 新增类：`Alpha158Generator`
-- 新增函数：`get_alpha158_config()`
-
-#### 深度学习模型
-- **LSTM模型** - 长短期记忆网络
-  - 支持多层LSTM
-  - 自动梯度裁剪
-  - 早停机制
-- **GRU模型** - 门控循环单元
-  - 比LSTM更快的训练速度
-  - 相似的建模能力
-- **Transformer模型** - 注意力机制
-  - 并行计算优势
-  - 全局依赖建模
-- 新增模块：`quantanalyzer/model/deep_models.py`
-- 新增类：`LSTMModel`, `GRUModel`, `TransformerModel`
-- 新增网络：`_LSTMNet`, `_GRUNet`, `_TransformerNet`
-
-#### MCP工具
-- `generate_alpha158` - 生成Alpha158因子集
-- `train_lstm_model` - 训练LSTM深度学习模型
-- `train_gru_model` - 训练GRU深度学习模型
-- `train_transformer_model` - 训练Transformer模型
-- `predict_with_model` - 使用训练好的模型预测
-- `list_models` - 列出所有已训练模型
-
-#### 文档
-- `功能扩展说明.md` - v2.0详细功能说明
-- `v2.0功能对比.md` - 版本对比文档
-- `CHANGELOG.md` - 更新日志（本文件）
-
-#### 示例
-- `examples/test_alpha158_and_dl.py` - Alpha158和深度学习完整测试
-
-### 🔧 改进
-
-#### 性能优化
-- 因子计算使用`transform`替代`apply`，提升计算效率
-- 索引对齐问题全面修复
-- 内存使用优化
-
-#### 代码质量
-- 添加完整的类型注解
-- 改进错误处理
-- 统一代码风格
-
-#### 测试覆盖
-- Alpha158因子生成测试
-- 深度学习模型训练测试
-- 模型性能对比测试
-- 真实数据验证（44条行情）
-
-### 📦 依赖更新
-- 新增：`torch>=2.0.0` - PyTorch深度学习框架
-
-### 🐛 修复
-- 修复：Alpha158因子计算中的索引对齐问题
-- 修复：MultiIndex DataFrame操作兼容性
-- 修复：滚动窗口计算边界问题
-
-### 🎯 测试结果
-
-#### Alpha158因子测试
-- ✅ 使用2只股票44条真实行情数据
-- ✅ 成功生成72个因子（小窗口配置）
-- ✅ K线形态因子：9个，全部正常
-- ✅ 空值率：8.1%（符合预期）
-
-#### 深度学习模型测试
-- ✅ LSTM：测试相关性 **0.8655** ⭐ 优秀
-- ✅ GRU：测试相关性 -0.3271（小样本不稳定）
-- ✅ Transformer：测试相关性 -0.5907（小样本不稳定）
-- 💡 结论：LSTM在小样本场景下表现最佳
-
-#### MCP服务测试
-- ✅ 11个工具全部正常运行
-- ✅ 因子生成工具测试通过
-- ✅ 模型训练工具测试通过
-- ✅ 预测工具测试通过
+### 🧪 Testing
+- 所有功能测试通过
+- 验证自动导出功能
+- 验证自定义路径导出
+- 验证不清洗模式
 
 ---
 
-## [1.0.0] - 2025-01-15
+## [1.0.6] - 2024-10-21
 
-### 🎉 初始版本发布
-
-QuantAnalyzer量化分析工具包首次发布。
-
-### ✨ 新增
-
-#### 核心模块
-- **数据层** (`quantanalyzer/data/`)
-  - `DataLoader` - CSV数据加载，支持MultiIndex
-  - `DataProcessor` - 数据预处理（填充、标准化、异常值）
-
-- **因子层** (`quantanalyzer/factor/`)
-  - `FactorLibrary` - 6个基础技术指标因子
-    - `momentum()` - 动量因子
-    - `volatility()` - 波动率因子
-    - `volume_ratio()` - 成交量比率
-    - `rsi()` - RSI相对强弱指标
-    - `macd()` - MACD指标
-    - `bollinger_bands()` - 布林带
-  - `FactorEvaluator` - IC/ICIR因子评估
-
-- **模型层** (`quantanalyzer/model/`)
-  - `ModelTrainer` - 传统机器学习模型
-    - LightGBM
-    - XGBoost
-    - Linear回归
-
-- **回测层** (`quantanalyzer/backtest/`)
-  - `BacktestEngine` - TopK策略回测
-  - 支持交易成本（手续费+滑点）
-  - 绩效指标（收益率、夏普、最大回撤）
-
-#### MCP服务
-- `mcp_server.py` - MCP服务器实现
-- 5个MCP工具：
-  - `load_csv_data` - 数据加载
-  - `calculate_factor` - 因子计算
-  - `evaluate_factor_ic` - IC评估
-  - `get_data_info` - 数据信息
-  - `list_factors` - 因子列表
-
-#### 文档
-- `README.md` - 项目介绍
-- `PROJECT_SUMMARY.md` - 项目总结
-- `MCP_使用说明.md` - MCP使用指南
-
-#### 示例
-- `examples/create_sample_data.py` - 生成模拟数据
-- `examples/fetch_real_data.py` - 获取真实数据
-- `examples/test_basic_functions.py` - 基础功能测试
-- `examples/complete_workflow.py` - 完整工作流
-- `examples/analyze_real_data.py` - 真实数据分析
-
-#### 数据
-- `sample_stock_data.csv` - 模拟数据（5844条）
-- `real_data_2stocks.csv` - 真实数据（44条）
-
-### 📦 依赖
-- `pandas>=2.0.0` - 数据处理
-- `numpy>=1.24.0` - 数值计算
-- `scipy>=1.10.0` - 科学计算
-- `lightgbm>=4.0.0` - 梯度提升
-- `xgboost>=2.0.0` - 极端梯度提升
-- `scikit-learn>=1.3.0` - 机器学习
-- `mcp>=1.0.0` - MCP协议
-
-### ✅ 测试验证
-- ✅ 模拟数据测试：5844条，4只股票，4年数据
-- ✅ 真实数据测试：44条finance-mcp真实行情
-- ✅ 完整工作流测试：8因子 + LightGBM + TopK回测
-- ✅ MCP服务测试：5个工具全部正常
+### Features
+- 完善MCP服务器功能
+- 优化数据清洗流程
 
 ---
 
-## 版本说明
+## [1.0.5] - 2024-10-20
 
-### 版本号规则
-
-格式：`主版本.次版本.修订号`
-
-- **主版本**：不兼容的API变更
-- **次版本**：向后兼容的功能新增
-- **修订号**：向后兼容的问题修复
-
-### 发布周期
-
-- **主版本**：每年1-2次（重大功能更新）
-- **次版本**：每季度1次（功能增强）
-- **修订号**：按需发布（错误修复）
+### Features
+- 添加自动数据清洗功能
+- 优化因子计算性能
 
 ---
 
-## 路线图
+## [1.0.4] - 2024-10-19
 
-### 近期计划（v2.1）
-
-- [ ] Alpha360因子库（360个原始价格序列）
-- [ ] 因子组合优化器（IC加权）
-- [ ] 更多技术指标（KDJ, Williams %R, ADX）
-- [ ] GPU加速的因子计算
-
-### 中期计划（v2.2-v2.5）
-
-- [ ] 模型自动调参（AutoML）
-- [ ] 分布式训练支持
-- [ ] 实时数据流接口
-- [ ] Web可视化Dashboard
-- [ ] 风险管理模块（VaR, CVaR）
-- [ ] 投资组合优化
-
-### 长期计划（v3.0+）
-
-- [ ] 强化学习模型
-- [ ] 图神经网络（GNN）
-- [ ] 知识图谱集成
-- [ ] 云端部署方案
-- [ ] 多资产类别支持（期货、期权、加密货币）
-
----
-
-## 贡献者
-
-感谢所有为QuantAnalyzer做出贡献的开发者！
-
-### 核心团队
-- **项目负责人** - 架构设计、核心开发
-- **Qlib团队** - 因子库架构参考
-- **RD-Agent团队** - R&D自动化参考
-
-### 特别感谢
-- Microsoft Qlib项目
-- Microsoft RD-Agent项目
-- 所有测试用户和反馈者
-
----
-
-## 许可证
-
-MIT License - 详见 [LICENSE](LICENSE) 文件
-
----
-
-## 联系方式
-
-- 📧 Email: quantanalyzer@example.com
-- 🐛 Bug报告: [GitHub Issues](https://github.com/your-repo/issues)
-- 💬 功能建议: [GitHub Discussions](https://github.com/your-repo/discussions)
-- 📚 文档: [Wiki](https://github.com/your-repo/wiki)
-
----
-
-**最后更新**: 2025-10-24
-**当前版本**: 1.0.2
-**状态**: ✅ 稳定版
+### Features
+- 初始MCP服务器实现
+- 基础量化分析功能

@@ -4,25 +4,33 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aigroup-quant-mcp"
-version = "1.0.2"
-description = "AI Group Quantitative Analysis MCP Service"
+version = "1.0.27"
+description = "AI Group Quantitative Analysis MCP Service - Machine Learning Models (No Torch Required)"
 readme = "README.md"
-authors = [{name = "AI Group", email = "ai.group@example.com"}]
 license = "MIT"
+authors = [{name = "AI Group", email = "ai.group@example.com"}]
 requires-python = ">=3.8"
 dynamic = ["classifiers"]
 dependencies = [
     "pandas>=2.0.0",
     "numpy>=1.24.0",
     "scipy>=1.10.0",
+    "mcp>=1.0.0",
     "lightgbm>=4.0.0",
     "xgboost>=2.0.0",
-    "scikit-learn>=1.3.0",
-    "torch>=2.0.0",
-    "mcp>=1.0.0"
+    "scikit-learn>=1.3.0"
 ]
 
 [project.optional-dependencies]
+dl = [
+    "torch>=2.0.0"
+]
+full = [
+    "lightgbm>=4.0.0",
+    "xgboost>=2.0.0",
+    "scikit-learn>=1.3.0",
+    "torch>=2.0.0"
+]
 viz = ["matplotlib>=3.7.0"]
 dev = ["pytest>=7.4.0"]
 

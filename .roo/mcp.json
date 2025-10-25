@@ -7,17 +7,14 @@
       ],
       "env": {},
       "alwaysAllow": [
-        "load_csv_data",
+        "preprocess_data",
         "calculate_factor",
         "generate_alpha158",
         "evaluate_factor_ic",
-        "list_factors",
-        "quick_start_lstm",
-        "train_lstm_model",
-        "train_gru_model",
-        "train_transformer_model",
-        "predict_with_model",
-        "list_models"
+        "apply_processor_chain",
+        "train_ml_model",
+        "predict_ml_model",
+        "list_factors"
       ]
     }
   }

@@ -160,6 +160,106 @@ class Fillna(Processor):
         return df
 
 
+class ProcessInf(Processor):
+    """
+    处理无穷值
+    
+    用截面均值替换inf和-inf值
+    参考Qlib实现
+    """
+    
+    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
+        # 检查是否有MultiIndex
+        if isinstance(df.index, pd.MultiIndex):
+            datetime_level = 0
+            
+            def process_inf_group(group):
+                for col in group.columns:
+                    if col in ['datetime', 'symbol']:
+                        continue
+                    # 用当前截面（日期）的均值替换inf
+                    mean_val = group[col][~np.isinf(group[col])].mean()
+                    if pd.notna(mean_val):
+                        group[col] = group[col].replace([np.inf, -np.inf], mean_val)
+                    else:
+                        # 如果均值也是NaN，用0替换
+                        group[col] = group[col].replace([np.inf, -np.inf], 0)
+                return group
+            
+            df = df.groupby(level=datetime_level, group_keys=False).apply(process_inf_group)
+        else:
+            # 单层Index，按datetime分组
+            if 'datetime' in df.columns:
+                def process_inf_group(group):
+                    for col in group.columns:
+                        if col in ['datetime', 'symbol']:
+                            continue
+                        mean_val = group[col][~np.isinf(group[col])].mean()
+                        if pd.notna(mean_val):
+                            group[col] = group[col].replace([np.inf, -np.inf], mean_val)
+                        else:
+                            group[col] = group[col].replace([np.inf, -np.inf], 0)
+                    return group
+                
+                df = df.groupby('datetime', group_keys=False).apply(process_inf_group)
+        
+        return df
+
+
+class CSZFillna(Processor):
+    """
+    截面填充缺失值
+    
+    用每个时间截面的均值填充缺失值
+    参考Qlib实现，更适合金融数据
+    
+    Parameters
+    ----------
+    fields : list or None
+        要填充的列名列表，None表示除datetime和symbol外的所有列
+        
+    Examples
+    --------
+    >>> proc = CSZFillna(fields=['factor1', 'factor2'])
+    >>> filled_data = proc(data)
+    
+    Notes
+    -----
+    这比固定值填充更合理，因为使用的是同一时间截面的均值
+    """
+    
+    def __init__(self, fields: Optional[List[str]] = None):
+        self.fields = fields
+    
+    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
+        # 确定要处理的列
+        if self.fields is None:
+            cols = [col for col in df.columns
+                   if col not in ['datetime', 'symbol']]
+        else:
+            cols = self.fields
+        
+        # 检查是否有MultiIndex
+        if isinstance(df.index, pd.MultiIndex):
+            datetime_level = 0
+            for col in cols:
+                if col in df.columns:
+                    # 用同一时间截面的均值填充
+                    df[col] = df.groupby(level=datetime_level)[col].transform(
+                        lambda x: x.fillna(x.mean())
+                    )
+        else:
+            # 单层Index，假设有datetime列
+            if 'datetime' in df.columns:
+                for col in cols:
+                    if col in df.columns:
+                        df[col] = df.groupby('datetime')[col].transform(
+                            lambda x: x.fillna(x.mean())
+                        )
+        
+        return df
+
+
 # ========== 标准化 Processors ==========
 
 class CSZScoreNorm(Processor):
@@ -520,6 +620,8 @@ __all__ = [
     'Processor',
     'DropnaLabel',
     'Fillna',
+    'ProcessInf',
+    'CSZFillna',
     'CSZScoreNorm',
     'ZScoreNorm',
     'RobustZScoreNorm',
