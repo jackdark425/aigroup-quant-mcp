@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aigroup-quant-mcp"
-version = "1.0.27"
+version = "1.0.28"
 description = "AI Group Quantitative Analysis MCP Service - Machine Learning Models (No Torch Required)"
 readme = "README.md"
 license = "MIT"

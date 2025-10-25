@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![MCP](https://img.shields.io/badge/MCP-1.0+-green.svg)](https://modelcontextprotocol.io/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![PyPI](https://img.shields.io/badge/PyPI-v1.0.27-blue.svg)](https://pypi.org/project/aigroup-quant-mcp/)
+[![PyPI](https://img.shields.io/badge/PyPI-v1.0.28-blue.svg)](https://pypi.org/project/aigroup-quant-mcp/)
 
 > 🎯 **专为Roo-Code设计的MCP量化分析服务** - 提供LightGBM/XGBoost/sklearn机器学习建模，无需torch依赖
 

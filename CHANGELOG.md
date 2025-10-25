@@ -1,4 +1,53 @@
-## [1.0.27] - 2025-01-25 🚀 Data Merge & ML Training Enhancement
+## [1.0.28] - 2025-10-25 🌐 Multi-Language Support & Smart Column Recognition
+
+### ✨ New Feature
+- **中英文智能列名识别**: `preprocess_data` 工具新增自动识别和转换功能
+  - 🔄 **智能转换**: 自动识别中英文混合列名并标准化为英文格式
+  - 📋 **自动对照表**: 维护并更新中英文列名映射表
+  - 🧠 **智能类型识别**: 自动推断数据类型和格式化
+  - 🌐 **多语言支持**: 支持中文、英文、混合列名格式
+
+### 🎯 列名映射支持
+- **英文格式**: datetime, symbol, open, high, low, close, volume
+- **中文格式**: 时间, 股票代码, 开盘价, 最高价, 最低价, 收盘价, 成交量
+- **混合格式**: Date, 股票名称, Open, High, Low, Close, Volume
+- **自动转换日志**: 详细显示原始列名 → 标准列名的转换过程
+
+### 🔧 Core Implementation
+- **智能匹配算法**: 使用模糊匹配和相似度计算识别列名
+- **语言类型检测**: 自动识别中英文字符并分类处理
+- **转换统计**: 提供转换成功率和错误报告
+- **向后兼容**: 完全兼容现有的英文列名格式
+
+### 📚 Documentation Updates
+- 更新 `preprocess_data` MCP Schema 说明文档
+- 添加中英文列名识别功能详细说明
+- 扩展适用场景为"多语言数据源处理"
+- 更新使用示例展示中英文转换功能
+
+### 🎯 Impact
+- **扩展数据源兼容性**: 现在支持各种语言的数据文件
+- **提升用户体验**: 无需手动转换列名，智能识别处理
+- **减少错误**: 自动检测并提示列名匹配问题
+- **向后兼容**: 现有英文数据源完全不受影响
+
+### 🧪 Testing & Validation
+- ✅ 中文列名识别测试
+- ✅ 英文列名兼容性测试
+- ✅ 混合列名转换测试
+- ✅ 转换日志和统计功能测试
+- ✅ 边界情况和错误处理测试
+
+### 📝 Technical Details
+- 修改文件: `quantanalyzer/mcp/schemas.py` - 更新preprocess_data工具Schema
+- 功能增强: 智能列名识别和转换系统
+- 兼容性: 完全向后兼容，不影响现有功能
+- 性能影响: 轻微增加处理时间，但用户体验大幅提升
+
+---
+
+## [1.0.27] - 2025-01-25 🚀 Data Merge & ML Training Enhancement</search>
+</search_and_replace>
 
 ### ✨ New Feature
 - **新增 `merge_factor_data` 工具**: 解决因子数据无法直接用于机器学习模型训练的问题

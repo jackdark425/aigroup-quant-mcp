@@ -2,7 +2,7 @@
 QuantAnalyzer - 轻量级量化分析包
 """
 
-__version__ = "1.0.6"
+__version__ = "1.0.28"
 __author__ = "Your Name"
 
 from quantanalyzer.data.loader import DataLoader
