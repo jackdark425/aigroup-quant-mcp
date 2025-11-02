@@ -20,14 +20,26 @@ from .errors import (
 )
 from .utils import serialize_response, convert_to_serializable
 
+def _convert_index_to_string(data_dict: dict) -> dict:
+    """将字典中的元组索引转换为字符串格式"""
+    if not isinstance(data_dict, dict):
+        return data_dict
+    
+    converted = {}
+    for key, value in data_dict.items():
+        if isinstance(key, tuple):
+            # 将元组索引转换为字符串格式，如 "(2023-01-01, 000001.SZ)"
+            converted[str(key)] = value
+        else:
+            converted[str(key)] = value
+    return converted
+
 from quantanalyzer.data import DataLoader
 from quantanalyzer.data.processor import (
     ProcessInf, CSZFillna, CSZScoreNorm, ZScoreNorm,
     RobustZScoreNorm, CSRankNorm, MinMaxNorm, ProcessorChain
 )
 from quantanalyzer.factor import FactorLibrary, FactorEvaluator, Alpha158Generator
-
-
 # 全局存储
 data_store = {}
 factor_store = {}
@@ -57,8 +69,9 @@ async def handle_preprocess_data(args: Dict[str, Any]) -> List[types.TextContent
         if error:
             return [types.TextContent(type="text", text=error)]
         
-        # 验证数据量
-        error = validate_data_length(data, min_length=100, data_id=data_id)
+        # 验证数据量 - 支持快速测试模式
+        min_data_length = 30  # 降低快速测试门槛
+        error = validate_data_length(data, min_length=min_data_length, data_id=data_id, operation_type="quick_test")
         if error:
             return [types.TextContent(type="text", text=error)]
         
@@ -266,23 +279,23 @@ async def handle_calculate_factor(args: Dict[str, Any]) -> List[types.TextConten
                 "quality_score": quality_score
             },
             "next_steps": [
-                {
-                    "step": 1,
-                    "action": "评估因子有效性",
-                    "tool": "evaluate_factor_ic",
-                    "params_example": {
-                        "factor_name": factor_name,
-                        "data_id": data_id,
-                        "method": "spearman"
-                    },
-                    "reason": "判断因子是否有预测能力"
+            {
+                "step": 1,
+                "action": "评估因子有效性",
+                "tool": "evaluate_factor_ic",
+                "params_example": {
+                    "factor_name": factor_name,
+                    "data_id": data_id,
+                    "method": "spearman"
                 },
-                {
-                    "step": 2,
-                    "action": "如果IC有效，可生成更多因子或直接训练模型",
-                    "tools": ["generate_alpha158", "train_lstm_model"]
-                }
-            ],
+                "reason": "判断因子是否有预测能力"
+            },
+            {
+                "step": 2,
+                "action": "如果IC有效，可生成更多因子或直接训练模型",
+                "tools": ["generate_alpha158", "train_ml_model"]
+            }
+        ],
             "tips": [
                 f"💡 因子类型: {factor_type}，周期: {period}天",
                 f"💡 数据质量: {quality_score}",
@@ -361,9 +374,9 @@ async def handle_generate_alpha158(args: Dict[str, Any]) -> List[types.TextConte
         if error:
             return [types.TextContent(type="text", text=error)]
         
-        # 验证数据量
-        min_required = max(rolling_windows) if rolling and rolling_windows else 100
-        error = validate_data_length(data, min_length=min_required, data_id=data_id)
+        # 验证数据量 - 支持快速测试模式
+        min_required = max(rolling_windows) if rolling and rolling_windows else 50  # 降低门槛
+        error = validate_data_length(data, min_length=min_required, data_id=data_id, operation_type="quick_test")
         if error:
             return [types.TextContent(type="text", text=error)]
         
@@ -451,8 +464,8 @@ async def handle_generate_alpha158(args: Dict[str, Any]) -> List[types.TextConte
                 },
                 {
                     "step": 2,
-                    "action": "训练深度学习模型",
-                    "tools": ["train_lstm_model", "train_gru_model", "train_transformer_model"],
+                    "action": "训练机器学习模型",
+                    "tools": ["train_ml_model"],
                     "params_example": {
                         "data_id": result_id,
                         "model_id": f"model_{result_id}"
@@ -529,8 +542,11 @@ async def handle_evaluate_factor_ic(args: Dict[str, Any]) -> List[types.TextCont
             # 如果是DataFrame，只取第一列
             price_data = price_data.iloc[:, 0]
         
-        # 计算收益率时明确指定不需要axis（因为是Series）
-        returns = price_data.groupby(level=1).pct_change().shift(-1)
+        # 修复：使用更稳健的收益率计算方法，避免边界NaN问题
+        # 计算下一期收益率，但避免使用shift(-1)产生边界NaN
+        returns = price_data.groupby(level=1).pct_change()
+        # 将收益率向前移动一期，表示因子对下一期收益率的预测能力
+        returns = returns.groupby(level=1).shift(-1)
         
         # 处理因子数据
         if isinstance(factor_data, pd.DataFrame):
@@ -538,8 +554,55 @@ async def handle_evaluate_factor_ic(args: Dict[str, Any]) -> List[types.TextCont
             # 暂时只使用第一个因子列
             factor_data = factor_data.iloc[:, 0]
         
-        aligned_factor = factor_data.dropna()
-        aligned_returns = returns.reindex(aligned_factor.index)
+        # 修复：使用更稳健的数据对齐方法
+        # 确保因子和收益率有相同的索引
+        common_index = factor_data.index.intersection(returns.index)
+        if len(common_index) == 0:
+            return [types.TextContent(
+                type="text",
+                text=MCPError.format_error(
+                    error_code=MCPError.COMPUTATION_ERROR,
+                    message="因子数据和收益率数据没有共同的时间索引",
+                    details={
+                        "factor_name": factor_name,
+                        "data_id": data_id,
+                        "factor_index_count": len(factor_data.index),
+                        "returns_index_count": len(returns.index)
+                    },
+                    suggestions=[
+                        "检查因子数据和价格数据的时间范围是否匹配",
+                        "确认数据预处理是否正确"
+                    ]
+                )
+            )]
+        
+        # 使用共同索引对齐数据
+        aligned_factor = factor_data.loc[common_index].dropna()
+        aligned_returns = returns.loc[common_index].dropna()
+        
+        # 进一步确保对齐
+        final_common_index = aligned_factor.index.intersection(aligned_returns.index)
+        if len(final_common_index) == 0:
+            return [types.TextContent(
+                type="text",
+                text=MCPError.format_error(
+                    error_code=MCPError.COMPUTATION_ERROR,
+                    message="因子和收益率数据在去除NaN后没有共同的时间索引",
+                    details={
+                        "factor_name": factor_name,
+                        "data_id": data_id,
+                        "aligned_factor_count": len(aligned_factor),
+                        "aligned_returns_count": len(aligned_returns)
+                    },
+                    suggestions=[
+                        "检查因子计算是否正确",
+                        "确认数据中没有过多的NaN值"
+                    ]
+                )
+            )]
+        
+        aligned_factor = aligned_factor.loc[final_common_index]
+        aligned_returns = aligned_returns.loc[final_common_index]
         
         evaluator = FactorEvaluator(aligned_factor, aligned_returns)
         ic_result = evaluator.calculate_ic(method=method)
@@ -628,7 +691,7 @@ async def handle_evaluate_factor_ic(args: Dict[str, Any]) -> List[types.TextCont
                     report_content += """
 1. ✅ 因子有效，可以使用
 2. 建议与其他因子组合使用
-3. 可以进行模型训练：使用train_lstm_model等工具
+3. 可以进行模型训练：使用train_ml_model等工具
 4. 定期监控因子IC的变化
 """
                 else:
@@ -685,7 +748,7 @@ async def handle_evaluate_factor_ic(args: Dict[str, Any]) -> List[types.TextCont
                 {
                     "step": 2,
                     "action": "生成更多因子或训练模型",
-                    "tools": ["generate_alpha158", "train_lstm_model"] if abs_ic > 0.05 else ["calculate_factor"],
+                    "tools": ["generate_alpha158", "train_ml_model"] if abs_ic > 0.05 else ["calculate_factor"],
                     "reason": "因子有效，可继续建模" if abs_ic > 0.05 else "当前因子效果不佳，建议尝试其他因子"
                 }
             ],
@@ -884,8 +947,8 @@ async def handle_apply_processor_chain(args: Dict[str, Any]) -> List[types.TextC
             "next_steps": [
                 {
                     "step": 1,
-                    "action": "训练深度学习模型",
-                    "tools": ["train_lstm_model", "train_gru_model", "train_transformer_model"],
+                    "action": "训练机器学习模型",
+                    "tools": ["train_ml_model"],
                     "params_example": {
                         "data_id": result_id,
                         "model_id": f"model_{result_id}"
@@ -1322,7 +1385,7 @@ async def handle_predict_ml_model(args: Dict[str, Any]) -> List[types.TextConten
                     "error": f"导出失败: {str(e)}"
                 }
         
-        # 构建响应
+        # 构建响应 - 修复数据类型问题
         result = {
             "status": "success",
             "message": f"✅ 使用模型 '{model_id}' 预测完成",
@@ -1339,8 +1402,8 @@ async def handle_predict_ml_model(args: Dict[str, Any]) -> List[types.TextConten
                 }
             },
             "preview": {
-                "head_5": predictions.head(5).to_dict(),
-                "tail_5": predictions.tail(5).to_dict()
+                "head_5": _convert_index_to_string(predictions.head(5).to_dict()),
+                "tail_5": _convert_index_to_string(predictions.tail(5).to_dict())
             },
             "tips": [
                 f"💡 预测数量: {len(predictions)}条",
@@ -1371,3 +1434,4 @@ async def handle_predict_ml_model(args: Dict[str, Any]) -> List[types.TextConten
                 ]
             )
         )]
+

@@ -80,9 +80,9 @@ generate_alpha158 或 calculate_factor
     ↓
 apply_processor_chain (可选，已清洗可跳过)
     ↓
-train_lstm_model / train_gru_model / train_transformer_model
+train_ml_model
     ↓
-predict_with_model
+predict_ml_model
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚡ 性能建议
@@ -647,9 +647,9 @@ generate_alpha158 👈 当前步骤
     ↓
 apply_processor_chain (可选)
     ↓
-train_lstm_model / train_gru_model / train_transformer_model
+train_ml_model
     ↓
-predict_with_model
+predict_ml_model
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1441,14 +1441,15 @@ def get_train_ml_model_schema():
     return types.Tool(
         name="train_ml_model",
         description="""
-[🤖 机器学习训练 | 步骤4/6] 训练机器学习模型（LightGBM/XGBoost/sklearn）
+[🤖 机器学习训练 | 步骤4/6] 训练机器学习模型（15种传统算法）
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 功能概述
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-使用LightGBM、XGBoost或scikit-learn训练机器学习模型进行股价预测。
-支持多种模型类型和自定义参数，提供完整的训练和评估指标。
+使用15种传统机器学习算法训练模型进行股价预测。
+支持线性模型、基于树的模型、支持向量机等多种算法类型，
+提供完整的训练和评估指标，包括特征重要性分析。
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎯 适用场景
@@ -1459,6 +1460,8 @@ def get_train_ml_model_schema():
   - 中短期价格预测
   - 特征工程研究
   - 快速原型验证
+  - 算法对比实验
+  - 特征重要性分析
 
 ⚠️ 不适合:
   - 序列建模（可考虑深度学习）
@@ -1466,12 +1469,30 @@ def get_train_ml_model_schema():
   - 需要复杂特征交互的场景
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📈 支持的模型类型
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📈 支持的模型类型（15种算法）
 
-- lightgbm: LightGBM梯度提升树（推荐，速度快）
-- xgboost: XGBoost梯度提升树（性能强）
-- linear: 线性回归（基线模型）
+🔹 线性模型:
+- linear: 线性回归（基线模型，速度快）
+- ridge: 岭回归（L2正则化，防止过拟合）
+- lasso: Lasso回归（L1正则化，自动特征选择）
+- elasticnet: 弹性网络（L1+L2正则化，平衡选择）
+- logistic: 逻辑回归（分类问题，预测涨跌）
+
+🔹 基于树的模型:
+- lightgbm: LightGBM梯度提升树（推荐，速度快，效果好）
+- xgboost: XGBoost梯度提升树（性能强，参数丰富）
+- catboost: CatBoost梯度提升树（处理类别特征）
+- random_forest: 随机森林（集成学习，稳定性好）
+- gradient_boosting: 梯度提升树（scikit-learn实现）
+- decision_tree: 决策树（可解释性强）
+
+🔹 支持向量机:
+- svm: 支持向量机（分类问题）
+- svr: 支持向量回归（回归问题）
+
+🔹 其他算法:
+- naive_bayes: 朴素贝叶斯（概率模型，速度快）
+- knn: K-最近邻（基于距离，简单有效）
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎬 典型工作流
@@ -1483,7 +1504,7 @@ generate_alpha158
     ↓
 apply_processor_chain
     ↓
-train_ml_model 👈 当前步骤
+train_ml_model 👈 当前步骤（15种算法可选）
     ↓
 predict_ml_model
 
@@ -1491,9 +1512,41 @@ predict_ml_model
 ⚡ 性能建议
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-- 数据量 < 1万: 1-10秒
-- 数据量 1-10万: 10-60秒
-- 数据量 > 10万: 1-10分钟
+- 数据量 < 1万: 1-30秒（线性模型更快）
+- 数据量 1-10万: 10-120秒（梯度提升树较慢）
+- 数据量 > 10万: 1-30分钟（建议使用lightgbm）
+
+📊 算法性能对比:
+- 速度: linear > ridge > lasso > random_forest > lightgbm > xgboost
+- 精度: xgboost ≈ lightgbm > random_forest > gradient_boosting > linear
+- 内存: linear < ridge < lasso < random_forest < lightgbm < xgboost
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 算法选择指南
+
+🎯 首次使用:
+- 推荐: lightgbm（平衡速度和精度）
+- 备选: random_forest（稳定性好）
+
+🔍 特征选择:
+- 推荐: lasso（自动特征筛选）
+- 备选: elasticnet（平衡选择）
+
+📈 高精度需求:
+- 推荐: xgboost（精度最高）
+- 备选: lightgbm（速度更快）
+
+⚡ 快速验证:
+- 推荐: linear（速度最快）
+- 备选: ridge（防止过拟合）
+
+🔬 可解释性:
+- 推荐: decision_tree（可视化决策过程）
+- 备选: linear（系数解释）
+
+📊 分类问题:
+- 推荐: logistic（线性分类）
+- 备选: svm（非线性分类）
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️ 注意事项
@@ -1503,7 +1556,9 @@ predict_ml_model
 2. 训练和测试时间范围不能重叠
 3. 建议训练集:测试集 = 7:3 或 8:2
 4. 模型会自动保存在内存中
-5. 特征重要性可用于特征筛选
+5. 所有模型都支持特征重要性计算
+6. 分类模型会自动将回归问题转换为分类问题
+7. 建议根据数据量和特征数量选择合适的算法
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """,
@@ -1544,22 +1599,63 @@ predict_ml_model
                 },
                 "model_type": {
                     "type": "string",
-                    "enum": ["lightgbm", "xgboost", "linear"],
+                    "enum": [
+                        "lightgbm", "xgboost", "linear", "ridge", "lasso", "elasticnet", "logistic",
+                        "random_forest", "gradient_boosting", "decision_tree", "catboost",
+                        "svm", "svr", "naive_bayes", "knn"
+                    ],
                     "default": "lightgbm",
                     "description": """
 模型类型
 
-📌 可选类型:
-- lightgbm: 推荐，速度快，效果好
-- xgboost: 性能强，参数多
-- linear: 基线模型，速度最快
+📌 支持的算法类型（15种传统机器学习算法）:
+
+🔹 线性模型:
+- linear: 线性回归（基线模型）
+- ridge: 岭回归（L2正则化）
+- lasso: Lasso回归（L1正则化，特征选择）
+- elasticnet: 弹性网络（L1+L2正则化）
+- logistic: 逻辑回归（分类问题）
+
+🔹 基于树的模型:
+- lightgbm: LightGBM梯度提升树（推荐，速度快）
+- xgboost: XGBoost梯度提升树（性能强）
+- catboost: CatBoost梯度提升树（处理类别特征）
+- random_forest: 随机森林（集成学习）
+- gradient_boosting: 梯度提升树（scikit-learn实现）
+- decision_tree: 决策树（可解释性强）
+
+🔹 支持向量机:
+- svm: 支持向量机（分类）
+- svr: 支持向量回归（回归）
+
+🔹 其他算法:
+- naive_bayes: 朴素贝叶斯（概率模型）
+- knn: K-最近邻（基于距离）
 
 💡 选择建议:
-- 首次尝试: lightgbm
-- 追求性能: xgboost
-- 快速验证: linear
+- 首次尝试: lightgbm（速度快，效果好）
+- 特征选择: lasso（自动特征筛选）
+- 分类问题: logistic, svm, naive_bayes
+- 可解释性: linear, decision_tree
+- 集成学习: random_forest, gradient_boosting
+- 处理类别特征: catboost
+- 基线模型: linear, ridge
+
+📊 性能特点:
+- 速度: linear > ridge > lasso > random_forest > lightgbm > xgboost
+- 精度: xgboost ≈ lightgbm > random_forest > gradient_boosting > linear
+- 内存: linear < ridge < lasso < random_forest < lightgbm < xgboost
+
+⚠️ 注意:
+- 分类模型（logistic, svm, naive_bayes）会自动将回归问题转换为分类问题
+- 所有模型都支持特征重要性计算（内置或排列重要性）
+- 建议根据数据量和特征数量选择合适的算法
 """,
-                    "examples": ["lightgbm", "xgboost", "linear"]
+                    "examples": [
+                        "lightgbm", "xgboost", "linear", "ridge", "lasso",
+                        "random_forest", "logistic", "svm", "naive_bayes"
+                    ]
                 },
                 "train_start": {
                     "type": "string",
@@ -1988,6 +2084,8 @@ predict_ml_model
             ]
         }
     )
+
+
 
 
 def get_all_tool_schemas():

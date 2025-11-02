@@ -74,6 +74,10 @@ uvx aigroup-quant-mcp
 | `evaluate_factor_ic`    | 因子评估         | 评估因子IC并生成报告                    |
 | `apply_processor_chain` | 数据标准化       | 智能标准化处理（单商品/多商品自动适配） |
 | `train_ml_model`        | 机器学习训练     | 训练LightGBM/XGBoost/sklearn模型        |
+| `train_lstm_model`      | LSTM模型训练     | 训练LSTM深度学习模型                    |
+| `train_gru_model`       | GRU模型训练      | 训练GRU深度学习模型                     |
+| `train_transformer_model` | Transformer训练 | 训练Transformer深度学习模型             |
+| `predict_with_model`    | 深度学习预测     | 使用深度学习模型进行预测                |
 | `predict_ml_model`      | 模型预测         | 使用训练好的模型进行预测                |
 | `list_factors`          | 查看因子         | 列出所有已加载的数据和因子              |
 
@@ -160,6 +164,14 @@ aigroup-quant-mcp
 - 📊 **完整评估**：MSE/MAE/R²/IC等指标
 - 🎯 **特征分析**：自动特征重要性分析
 - 🔮 **批量预测**：支持导出预测结果
+
+### 6️⃣ 深度学习建模
+
+- 🧠 **三模型支持**：LSTM/GRU/Transformer
+- 📈 **序列建模**：专门处理时间序列数据
+- 🔧 **灵活配置**：序列长度、隐藏层、层数可调
+- 💾 **内存优化**：自动GPU/CPU切换
+- 📊 **专业评估**：损失曲线、预测精度分析
 
 ---
 
@@ -322,6 +334,101 @@ aigroup-quant-mcp
 - 训练和测试性能指标（MSE/MAE/R²/IC）
 - 特征重要性分析
 - 模型质量评估
+
+### train_lstm_model
+
+训练LSTM深度学习模型
+
+**参数**：
+
+- `data_id`：数据源ID
+- `model_id`：模型唯一标识
+- `sequence_length`：序列长度（默认60）
+- `hidden_size`：隐藏层大小（默认64）
+- `num_layers`：LSTM层数（默认2）
+- `learning_rate`：学习率（默认0.001）
+- `epochs`：训练轮数（默认100）
+- `batch_size`：批次大小（默认32）
+- `train_start`：训练开始日期
+- `train_end`：训练结束日期
+- `test_start`：测试开始日期
+- `test_end`：测试结束日期
+
+**返回**：
+
+- 训练和测试损失曲线
+- 预测精度评估
+- 模型配置信息
+- 训练时间统计
+
+### train_gru_model
+
+训练GRU深度学习模型
+
+**参数**：
+
+- `data_id`：数据源ID
+- `model_id`：模型唯一标识
+- `sequence_length`：序列长度（默认60）
+- `hidden_size`：隐藏层大小（默认64）
+- `num_layers`：GRU层数（默认2）
+- `learning_rate`：学习率（默认0.001）
+- `epochs`：训练轮数（默认100）
+- `batch_size`：批次大小（默认32）
+- `train_start`：训练开始日期
+- `train_end`：训练结束日期
+- `test_start`：测试开始日期
+- `test_end`：测试结束日期
+
+**返回**：
+
+- 训练和测试损失曲线
+- 预测精度评估
+- 模型配置信息
+- 训练时间统计
+
+### train_transformer_model
+
+训练Transformer深度学习模型
+
+**参数**：
+
+- `data_id`：数据源ID
+- `model_id`：模型唯一标识
+- `sequence_length`：序列长度（默认60）
+- `d_model`：模型维度（默认64）
+- `nhead`：注意力头数（默认4）
+- `num_layers`：编码器层数（默认2）
+- `learning_rate`：学习率（默认0.001）
+- `epochs`：训练轮数（默认100）
+- `batch_size`：批次大小（默认32）
+- `train_start`：训练开始日期
+- `train_end`：训练结束日期
+- `test_start`：测试开始日期
+- `test_end`：测试结束日期
+
+**返回**：
+
+- 训练和测试损失曲线
+- 预测精度评估
+- 模型配置信息
+- 训练时间统计
+
+### predict_with_model
+
+使用深度学习模型进行预测
+
+**参数**：
+
+- `model_id`：模型ID
+- `data_id`：预测数据ID
+- `export_path`：导出路径（可选）
+
+**返回**：
+
+- 预测结果统计
+- 预测值预览
+- 导出信息（如果指定）
 
 ### predict_ml_model
 

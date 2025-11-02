@@ -98,25 +98,50 @@ def validate_required_columns(data: pd.DataFrame, required_cols: list, data_id: 
     return None
 
 
-def validate_data_length(data: pd.DataFrame, min_length: int, data_id: str) -> str:
+def validate_data_length(data: pd.DataFrame, min_length: int, data_id: str, operation_type: str = "general") -> str:
     """验证数据量是否充足"""
     if len(data) < min_length:
-        return MCPError.format_error(
-            error_code=MCPError.INSUFFICIENT_DATA,
-            message=f"数据量不足: 仅有 {len(data)} 条记录",
-            details={
-                "data_id": data_id,
-                "current_rows": len(data),
-                "minimum_required": min_length,
-                "recommended": max(min_length * 10, 1000)
-            },
-            suggestions=[
-                f"当前操作需要至少 {min_length} 条历史数据",
-                f"建议使用至少 {max(min_length * 10, 1000)} 条数据以获得更好的效果",
-                "检查数据加载是否完整",
-                "考虑扩大数据的时间范围"
-            ]
-        )
+        # 根据操作类型提供不同的建议
+        if operation_type == "quick_test":
+            # 快速测试模式，降低要求
+            if len(data) >= 10:  # 快速测试至少需要10条数据
+                return None
+            else:
+                return MCPError.format_error(
+                    error_code=MCPError.INSUFFICIENT_DATA,
+                    message=f"数据量不足: 仅有 {len(data)} 条记录",
+                    details={
+                        "data_id": data_id,
+                        "current_rows": len(data),
+                        "minimum_required": 10,
+                        "operation_type": operation_type
+                    },
+                    suggestions=[
+                        "快速测试模式需要至少10条数据",
+                        "建议使用至少30条数据以获得基本效果",
+                        "对于正式分析，建议使用100+条数据"
+                    ]
+                )
+        else:
+            # 标准模式
+            return MCPError.format_error(
+                error_code=MCPError.INSUFFICIENT_DATA,
+                message=f"数据量不足: 仅有 {len(data)} 条记录",
+                details={
+                    "data_id": data_id,
+                    "current_rows": len(data),
+                    "minimum_required": min_length,
+                    "recommended": max(min_length * 10, 1000),
+                    "operation_type": operation_type
+                },
+                suggestions=[
+                    f"当前操作需要至少 {min_length} 条历史数据",
+                    f"建议使用至少 {max(min_length * 10, 1000)} 条数据以获得更好的效果",
+                    "检查数据加载是否完整",
+                    "考虑扩大数据的时间范围",
+                    "对于快速测试，可以使用更小的数据集"
+                ]
+            )
     return None
 
 

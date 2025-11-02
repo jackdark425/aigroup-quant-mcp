@@ -40,7 +40,7 @@ async def handle_list_tools() -> List[types.Tool]:
         get_predict_ml_model_schema
     )
     
-    # 返回所有可用工具（包含机器学习功能）
+    # 返回所有可用工具（仅包含机器学习功能）
     tools = [
         get_preprocess_data_schema(),
         get_calculate_factor_schema(),

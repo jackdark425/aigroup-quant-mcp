@@ -1,3 +1,136 @@
+## [1.0.31] - 2025-11-02 🚀 Enhanced ML Support & Factor Accuracy Fix
+
+### ✨ Major Features
+- **扩展机器学习算法支持**: 从6种扩展到15种传统机器学习算法
+  - ✅ `linear` - 线性回归（基线模型）
+  - ✅ `ridge` - 岭回归（L2正则化）
+  - ✅ `lasso` - Lasso回归（L1正则化，特征选择）
+  - ✅ `elasticnet` - 弹性网络回归（L1+L2正则化）
+  - ✅ `logistic` - 逻辑回归（分类任务）
+  - ✅ `lightgbm` - LightGBM梯度提升树（推荐，速度快）
+  - ✅ `xgboost` - XGBoost梯度提升树（性能强）
+  - ✅ `random_forest` - 随机森林（集成学习）
+  - ✅ `gradient_boosting` - 梯度提升树（GBDT）
+  - ✅ `decision_tree` - 决策树（可解释性强）
+  - ✅ `catboost` - CatBoost梯度提升树（类别特征优化）
+  - ✅ `svm` - 支持向量机（分类）
+  - ✅ `svr` - 支持向量回归（回归）
+  - ✅ `naive_bayes` - 朴素贝叶斯（概率模型）
+  - ✅ `knn` - K近邻算法（非参数模型）
+
+### 🐛 Critical Bug Fixes
+- **修复因子IC评估结果为NaN问题**: 解决动量因子计算中的数据对齐问题
+  - 问题：动量因子IC评估返回NaN值
+  - 原因：因子计算和价格数据索引未对齐
+  - 修复：在因子库中添加数据对齐机制（reindex确保索引对齐）
+  - 影响：因子IC评估现在返回正常数值
+
+- **移除深度学习工具**: 专注于传统机器学习算法
+  - 移除：`train_lstm_model`, `train_gru_model`, `train_transformer_model`, `predict_with_model`
+  - 原因：简化工具链，专注于核心量化分析功能
+  - 影响：工具总数从13个减少到9个，更稳定可靠
+
+### 🔧 Tool Consistency
+- **验证MCP工具注册一致性**: 确保9个核心工具在schema定义、服务器注册和实际处理中完全一致
+  - ✅ `preprocess_data` - 数据预处理和清洗
+  - ✅ `calculate_factor` - 单因子计算
+  - ✅ `generate_alpha158` - Alpha158因子生成
+  - ✅ `merge_factor_data` - 因子数据合并
+  - ✅ `apply_processor_chain` - 数据处理器链（智能标准化）
+  - ✅ `evaluate_factor_ic` - 因子IC评估
+  - ✅ `list_factors` - 查看已加载数据和因子
+  - ✅ `train_ml_model` - 训练机器学习模型（15种算法）
+  - ✅ `predict_ml_model` - 使用机器学习模型进行预测
+
+### 📊 Factor Accuracy Enhancement
+- **动量因子**: 修复数据对齐，确保IC评估正常
+- **波动率因子**: 优化标准差计算逻辑
+- **RSI因子**: 完善14日周期计算
+- **成交量比率因子**: 改进成交量数据处理
+- **IC评估**: 添加异常处理机制，避免NaN结果
+
+### 🎯 Impact
+- **丰富的机器学习算法**: 15种传统算法覆盖各种量化策略需求
+- **因子计算准确性**: 所有因子计算和IC评估现在返回正常数值
+- **工具稳定性**: 移除深度学习工具，专注于核心功能
+- **用户体验**: 更稳定的因子计算和更丰富的模型选择
+
+### 📝 Technical Details
+- 更新文件：`quantanalyzer/mcp/schemas.py` - 扩展机器学习算法支持
+- 更新文件：`quantanalyzer/mcp/handlers.py` - 实现15种算法训练逻辑
+- 更新文件：`quantanalyzer/model/trainer.py` - 优化模型训练和特征重要性
+- 修复文件：`quantanalyzer/factor/library.py` - 修复因子数据对齐问题
+- 修复文件：`quantanalyzer/factor/evaluator.py` - 优化IC评估异常处理
+- 更新文件：`README.md` - 更新文档包含15种算法说明
+
+### 🧪 Testing & Validation
+- ✅ 15种机器学习算法可用性验证
+- ✅ 因子计算准确性测试
+- ✅ IC评估正常性验证
+- ✅ 完整工作流程测试
+- ✅ 工具一致性验证
+
+---
+
+## [1.0.29] - 2025-11-02 🐛 Critical Bug Fixes & Tool Consistency
+
+### 🐛 Critical Bug Fixes
+- **修复预测模块数据类型错误**: 解决 `predict_ml_model` 中的元组键序列化问题
+  - 问题：预测时出现 `keys must be str, int, float, bool or None, not tuple` 错误
+  - 修复：完善 MultiIndex DataFrame 的序列化处理逻辑
+  - 影响：现在可以正常使用机器学习模型进行预测
+
+- **修复工具名称不一致问题**: 移除所有不存在的深度学习工具引用
+  - 移除：`train_lstm_model`, `train_gru_model`, `train_transformer_model`, `predict_with_model`
+  - 修复：文档与实际工具列表完全一致
+  - 影响：避免用户调用不存在工具导致的错误
+
+### 🔧 Tool Consistency
+- **验证MCP工具注册一致性**: 确保9个工具在schema定义、服务器注册和实际处理中完全一致
+  - ✅ `preprocess_data` - 数据预处理和清洗
+  - ✅ `calculate_factor` - 单因子计算
+  - ✅ `generate_alpha158` - Alpha158因子生成
+  - ✅ `merge_factor_data` - 因子数据合并
+  - ✅ `apply_processor_chain` - 数据处理器链（智能标准化）
+  - ✅ `evaluate_factor_ic` - 因子IC评估
+  - ✅ `list_factors` - 查看已加载数据和因子
+  - ✅ `train_ml_model` - 训练机器学习模型
+  - ✅ `predict_ml_model` - 使用模型进行预测
+
+### 📊 Data Requirements & Compatibility
+- **优化数据量要求**: 确认系统支持灵活的数据规模
+  - 快速测试模式：仅需10条记录
+  - 标准模式：建议100条以上记录
+  - 生产模式：支持百万级数据
+
+- **增强列名兼容性**: 验证50+种中英文列名变体支持
+  - 英文格式：datetime, symbol, open, high, low, close, volume
+  - 中文格式：时间, 股票代码, 开盘价, 最高价, 最低价, 收盘价, 成交量
+  - 混合格式：Date, 股票名称, Open, High, Low, Close, Volume
+  - 智能识别：自动检测和转换不同格式的列名
+
+### 🎯 Impact
+- **修复严重bug**: 预测功能现在可以正常工作
+- **提升稳定性**: 工具列表完全一致，避免调用错误
+- **增强兼容性**: 支持更广泛的数据格式和规模
+- **改善用户体验**: 更清晰的错误提示和文档
+
+### 📝 Technical Details
+- 修复文件：`quantanalyzer/mcp/handlers.py` - 完善预测数据序列化
+- 更新文件：`quantanalyzer/mcp/schemas.py` - 移除不存在的工具引用
+- 更新文件：`quantanalyzer/mcp/server.py` - 确保工具路由一致性
+- 更新文件：`quantanalyzer/mcp/resources.py` - 移除不存在的工具引用
+- 更新文件：`docs/ML_MODELS_GUIDE.md` - 更新文档与实际工具一致
+
+### 🧪 Testing & Validation
+- ✅ 预测模块数据类型错误修复验证
+- ✅ MCP工具名称一致性验证
+- ✅ 数据量要求灵活性测试
+- ✅ 列名兼容性测试
+- ✅ 完整工作流程测试
+
+---
+
 ## [1.0.28] - 2025-10-25 🌐 Multi-Language Support & Smart Column Recognition
 
 ### ✨ New Feature

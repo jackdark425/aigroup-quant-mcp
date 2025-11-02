@@ -284,8 +284,8 @@ python examples/test_ml_models.py
 如果之前使用torch深度学习模型，现在可以轻松迁移到机器学习：
 
 ```python
-# 之前：深度学习模型
-train_lstm_model(...)  # 需要torch
+# 之前：深度学习模型（已移除）
+# train_lstm_model(...)  # 需要torch，已移除
 
 # 现在：机器学习模型（无需torch）
 train_ml_model(model_type="lightgbm", ...)  # 速度更快，效果相当

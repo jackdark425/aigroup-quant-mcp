@@ -21,7 +21,15 @@ class FactorLibrary:
             动量因子值
         """
         close = data['close']
-        return close / close.groupby(level=1).shift(period) - 1
+        # 修复：使用更稳健的动量计算方法，确保数据对齐
+        # 先计算收益率，然后计算滚动收益率，最后确保索引对齐
+        returns = close.groupby(level=1).pct_change()
+        momentum = returns.groupby(level=1).rolling(period).sum().droplevel(0)
+        
+        # 确保动量因子与原始数据索引对齐
+        momentum = momentum.reindex(close.index)
+        
+        return momentum
     
     @staticmethod
     def volatility(data: pd.DataFrame, period: int = 20) -> pd.Series:
@@ -35,8 +43,14 @@ class FactorLibrary:
         Returns:
             波动率因子值
         """
-        returns = data['close'].pct_change()
-        return returns.groupby(level=1).rolling(period).std().droplevel(0)
+        close = data['close']
+        returns = close.groupby(level=1).pct_change()
+        volatility = returns.groupby(level=1).rolling(period).std().droplevel(0)
+        
+        # 确保波动率因子与原始数据索引对齐
+        volatility = volatility.reindex(close.index)
+        
+        return volatility
     
     @staticmethod
     def volume_ratio(data: pd.DataFrame, period: int = 20) -> pd.Series:
@@ -52,7 +66,12 @@ class FactorLibrary:
         """
         volume = data['volume']
         ma_volume = volume.groupby(level=1).rolling(period).mean().droplevel(0)
-        return volume / ma_volume
+        volume_ratio = volume / ma_volume
+        
+        # 确保成交量比率与原始数据索引对齐
+        volume_ratio = volume_ratio.reindex(volume.index)
+        
+        return volume_ratio
     
     @staticmethod
     def rsi(data: pd.DataFrame, period: int = 14) -> pd.Series:
@@ -77,6 +96,9 @@ class FactorLibrary:
         
         rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
+        
+        # 确保RSI与原始数据索引对齐
+        rsi = rsi.reindex(close.index)
         
         return rsi
     

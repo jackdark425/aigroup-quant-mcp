@@ -136,3 +136,6 @@ Thumbs.db
 # Project specific
 quantanalyzer.egg-info/
 aigroup_quant_mcp.egg-info/
+
+# Roo Code configuration
+.roo/

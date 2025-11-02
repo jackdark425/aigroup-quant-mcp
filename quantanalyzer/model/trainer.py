@@ -1,24 +1,31 @@
 """
 模型训练器
+支持多种传统机器学习算法
 """
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 
 
 class ModelTrainer:
-    """模型训练器"""
+    """模型训练器 - 支持多种传统机器学习算法"""
     
     def __init__(self, model_type: str = "lightgbm"):
         """
         初始化模型训练器
         
         Args:
-            model_type: 模型类型 (lightgbm/xgboost/linear)
+            model_type: 模型类型，支持以下算法：
+                - 线性模型: linear, ridge, lasso, elasticnet, logistic
+                - 基于树的模型: decision_tree, random_forest, gradient_boosting, lightgbm, xgboost, catboost
+                - 支持向量机: svm, svr
+                - 朴素贝叶斯: naive_bayes
+                - K-最近邻: knn
         """
         self.model_type = model_type
         self.model = None
         self.feature_importance = None
+        self.model_params = {}
     
     def prepare_dataset(
         self,
@@ -83,7 +90,53 @@ class ModelTrainer:
         if params is None:
             params = self._get_default_params()
         
-        if self.model_type == "lightgbm":
+        self.model_params = params
+        
+        # 线性模型
+        if self.model_type in ["linear", "ridge"]:
+            from sklearn.linear_model import Ridge
+            self.model = Ridge(**params)
+            self.model.fit(X_train, y_train)
+            
+            self.feature_importance = pd.Series(
+                np.abs(self.model.coef_),
+                index=X_train.columns
+            ).sort_values(ascending=False)
+            
+        elif self.model_type == "lasso":
+            from sklearn.linear_model import Lasso
+            self.model = Lasso(**params)
+            self.model.fit(X_train, y_train)
+            
+            self.feature_importance = pd.Series(
+                np.abs(self.model.coef_),
+                index=X_train.columns
+            ).sort_values(ascending=False)
+            
+        elif self.model_type == "elasticnet":
+            from sklearn.linear_model import ElasticNet
+            self.model = ElasticNet(**params)
+            self.model.fit(X_train, y_train)
+            
+            self.feature_importance = pd.Series(
+                np.abs(self.model.coef_),
+                index=X_train.columns
+            ).sort_values(ascending=False)
+            
+        elif self.model_type == "logistic":
+            from sklearn.linear_model import LogisticRegression
+            # 将回归问题转换为分类问题（收益率正负）
+            y_train_binary = (y_train > 0).astype(int)
+            self.model = LogisticRegression(**params)
+            self.model.fit(X_train, y_train_binary)
+            
+            self.feature_importance = pd.Series(
+                np.abs(self.model.coef_[0]),
+                index=X_train.columns
+            ).sort_values(ascending=False)
+        
+        # 基于树的模型
+        elif self.model_type == "lightgbm":
             import lightgbm as lgb
             
             train_data = lgb.Dataset(X_train, label=y_train)
@@ -132,37 +185,141 @@ class ModelTrainer:
                 self.model.get_score(importance_type='weight'),
                 index=X_train.columns
             ).sort_values(ascending=False)
-        
-        elif self.model_type == "linear":
-            from sklearn.linear_model import Ridge
             
-            self.model = Ridge(**params)
+        elif self.model_type == "catboost":
+            try:
+                from catboost import CatBoostRegressor
+                self.model = CatBoostRegressor(**params, verbose=False)
+                self.model.fit(X_train, y_train)
+                
+                self.feature_importance = pd.Series(
+                    self.model.get_feature_importance(),
+                    index=X_train.columns
+                ).sort_values(ascending=False)
+            except ImportError:
+                raise ImportError("CatBoost not installed. Install with: pip install catboost")
+            
+        elif self.model_type == "random_forest":
+            from sklearn.ensemble import RandomForestRegressor
+            self.model = RandomForestRegressor(**params)
             self.model.fit(X_train, y_train)
             
             self.feature_importance = pd.Series(
-                np.abs(self.model.coef_),
+                self.model.feature_importances_,
                 index=X_train.columns
             ).sort_values(ascending=False)
+            
+        elif self.model_type == "gradient_boosting":
+            from sklearn.ensemble import GradientBoostingRegressor
+            self.model = GradientBoostingRegressor(**params)
+            self.model.fit(X_train, y_train)
+            
+            self.feature_importance = pd.Series(
+                self.model.feature_importances_,
+                index=X_train.columns
+            ).sort_values(ascending=False)
+            
+        elif self.model_type == "decision_tree":
+            from sklearn.tree import DecisionTreeRegressor
+            self.model = DecisionTreeRegressor(**params)
+            self.model.fit(X_train, y_train)
+            
+            self.feature_importance = pd.Series(
+                self.model.feature_importances_,
+                index=X_train.columns
+            ).sort_values(ascending=False)
+        
+        # 支持向量机
+        elif self.model_type in ["svm", "svr"]:
+            from sklearn.svm import SVR
+            self.model = SVR(**params)
+            self.model.fit(X_train, y_train)
+            
+            # SVM没有直接的特征重要性，使用基于权重的近似方法
+            if hasattr(self.model, 'coef_') and self.model.coef_ is not None:
+                self.feature_importance = pd.Series(
+                    np.abs(self.model.coef_[0]),
+                    index=X_train.columns
+                ).sort_values(ascending=False)
+            else:
+                # 对于非线性SVM，使用基于排列的重要性
+                self.feature_importance = self._calculate_permutation_importance(X_train, y_train)
+        
+        # 朴素贝叶斯
+        elif self.model_type == "naive_bayes":
+            from sklearn.naive_bayes import GaussianNB
+            # 将回归问题转换为分类问题（收益率正负）
+            y_train_binary = (y_train > 0).astype(int)
+            self.model = GaussianNB(**params)
+            self.model.fit(X_train, y_train_binary)
+            
+            # 朴素贝叶斯没有直接的特征重要性
+            self.feature_importance = self._calculate_permutation_importance(X_train, y_train_binary)
+        
+        # K-最近邻
+        elif self.model_type == "knn":
+            from sklearn.neighbors import KNeighborsRegressor
+            self.model = KNeighborsRegressor(**params)
+            self.model.fit(X_train, y_train)
+            
+            # KNN没有直接的特征重要性
+            self.feature_importance = self._calculate_permutation_importance(X_train, y_train)
+            
+        else:
+            raise ValueError(f"不支持的模型类型: {self.model_type}")
     
     def predict(self, X: pd.DataFrame) -> pd.Series:
         """预测"""
         if self.model is None:
             raise ValueError("Model not trained yet")
         
-        if self.model_type == "lightgbm":
+        # 线性模型
+        if self.model_type in ["linear", "ridge", "lasso", "elasticnet"]:
+            predictions = self.model.predict(X)
+            
+        # 分类模型需要特殊处理
+        elif self.model_type == "logistic":
+            predictions = self.model.predict_proba(X)[:, 1]  # 正类概率
+            # 转换为回归预测（概率值）
+            predictions = predictions * 2 - 1  # 映射到[-1, 1]范围
+            
+        elif self.model_type == "naive_bayes":
+            predictions = self.model.predict_proba(X)[:, 1]  # 正类概率
+            predictions = predictions * 2 - 1  # 映射到[-1, 1]范围
+            
+        # 基于树的模型
+        elif self.model_type == "lightgbm":
             predictions = self.model.predict(X)
         elif self.model_type == "xgboost":
             import xgboost as xgb
             dtest = xgb.DMatrix(X)
             predictions = self.model.predict(dtest)
-        elif self.model_type == "linear":
+        elif self.model_type in ["catboost", "random_forest", "gradient_boosting", "decision_tree"]:
             predictions = self.model.predict(X)
+            
+        # 支持向量机和KNN
+        elif self.model_type in ["svm", "svr", "knn"]:
+            predictions = self.model.predict(X)
+            
+        else:
+            raise ValueError(f"不支持的模型类型: {self.model_type}")
         
         return pd.Series(predictions, index=X.index)
     
     def _get_default_params(self) -> Dict:
         """获取默认参数"""
-        if self.model_type == "lightgbm":
+        # 线性模型
+        if self.model_type in ["linear", "ridge"]:
+            return {"alpha": 1.0}
+        elif self.model_type == "lasso":
+            return {"alpha": 1.0}
+        elif self.model_type == "elasticnet":
+            return {"alpha": 1.0, "l1_ratio": 0.5}
+        elif self.model_type == "logistic":
+            return {"C": 1.0, "max_iter": 1000}
+            
+        # 基于树的模型
+        elif self.model_type == "lightgbm":
             return {
                 "objective": "regression",
                 "metric": "mse",
@@ -176,7 +333,81 @@ class ModelTrainer:
                 "learning_rate": 0.05,
                 "max_depth": 6
             }
-        elif self.model_type == "linear":
-            return {"alpha": 1.0}
+        elif self.model_type == "catboost":
+            return {
+                "iterations": 1000,
+                "learning_rate": 0.05,
+                "depth": 6,
+                "loss_function": "RMSE"
+            }
+        elif self.model_type == "random_forest":
+            return {
+                "n_estimators": 100,
+                "max_depth": None,
+                "random_state": 42
+            }
+        elif self.model_type == "gradient_boosting":
+            return {
+                "n_estimators": 100,
+                "learning_rate": 0.1,
+                "max_depth": 3
+            }
+        elif self.model_type == "decision_tree":
+            return {
+                "max_depth": None,
+                "random_state": 42
+            }
+            
+        # 支持向量机
+        elif self.model_type in ["svm", "svr"]:
+            return {
+                "kernel": "rbf",
+                "C": 1.0,
+                "gamma": "scale"
+            }
+            
+        # 朴素贝叶斯
+        elif self.model_type == "naive_bayes":
+            return {}
+            
+        # K-最近邻
+        elif self.model_type == "knn":
+            return {
+                "n_neighbors": 5,
+                "weights": "uniform"
+            }
         
         return {}
+    
+    def _calculate_permutation_importance(self, X: pd.DataFrame, y: pd.Series, n_repeats: int = 5) -> pd.Series:
+        """
+        计算排列重要性（对于没有内置特征重要性的模型）
+        
+        Args:
+            X: 特征数据
+            y: 标签数据
+            n_repeats: 重复次数
+            
+        Returns:
+            特征重要性Series
+        """
+        from sklearn.metrics import mean_squared_error
+        import numpy as np
+        
+        baseline_score = mean_squared_error(y, self.predict(X))
+        feature_importance = {}
+        
+        for feature in X.columns:
+            X_permuted = X.copy()
+            original_values = X_permuted[feature].copy()
+            
+            # 多次排列并计算平均影响
+            scores = []
+            for _ in range(n_repeats):
+                X_permuted[feature] = np.random.permutation(original_values)
+                permuted_score = mean_squared_error(y, self.predict(X_permuted))
+                scores.append(permuted_score - baseline_score)
+            
+            feature_importance[feature] = np.mean(scores)
+        
+        return pd.Series(feature_importance).sort_values(ascending=False)

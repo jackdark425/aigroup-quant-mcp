@@ -81,17 +81,36 @@ class DataLoader:
             expected_datetime_col = 'datetime'
             expected_symbol_col = 'symbol'
         else:
-            # 如果没有转换，使用原始列名
-            expected_datetime_col = '交易日期'
-            expected_symbol_col = '股票代码'
-
-            # 检查原始数据是否有股票代码列
-            if expected_symbol_col not in raw_df.columns:
-                # 如果没有股票代码列，但用户提供了target_symbol，直接使用
+            # 如果没有转换，尝试多种列名格式
+            datetime_candidates = ['交易日期', 'datetime', 'date', '时间', 'trade_date']
+            symbol_candidates = ['股票代码', 'symbol', 'code', 'stock_code', 'ticker']
+            
+            # 找到第一个存在的日期列
+            expected_datetime_col = None
+            for candidate in datetime_candidates:
+                if candidate in raw_df.columns:
+                    expected_datetime_col = candidate
+                    break
+            
+            # 找到第一个存在的股票代码列
+            expected_symbol_col = None
+            for candidate in symbol_candidates:
+                if candidate in raw_df.columns:
+                    expected_symbol_col = candidate
+                    break
+            
+            # 如果找不到日期列，报错
+            if expected_datetime_col is None:
+                raise ValueError(f"找不到日期列，尝试的列名: {datetime_candidates}")
+            
+            # 如果找不到股票代码列，使用默认值
+            if expected_symbol_col is None:
                 if target_symbol:
+                    expected_symbol_col = 'symbol'  # 创建新列
                     raw_df[expected_symbol_col] = target_symbol
                 else:
-                    # 如果用户也没有提供，使用默认股票代码
+                    # 使用默认股票代码
+                    expected_symbol_col = 'symbol'
                     default_symbol = "DEFAULT_STOCK"
                     raw_df[expected_symbol_col] = default_symbol
 

@@ -99,7 +99,7 @@ def read_faq_resource(uri: str) -> str:
 
 #### 第4步: 训练LSTM模型
 ```
-工具: train_lstm_model
+工具: train_ml_model
 参数:
   data_id: "processed_factors"
   model_id: "my_lstm_model"
@@ -114,7 +114,7 @@ def read_faq_resource(uri: str) -> str:
 
 #### 第5步: 模型预测
 ```
-工具: predict_with_model
+工具: predict_ml_model
 参数:
   model_id: "my_lstm_model"
   data_id: "processed_factors"
@@ -250,8 +250,8 @@ def read_faq_resource(uri: str) -> str:
 2. generate_alpha158 → 生成特征
 3. create_processor_chain → 创建预处理链
 4. apply_processor_chain → 应用预处理
-5. train_lstm_model → 训练模型
-6. predict_with_model → 生成预测
+5. train_ml_model → 训练模型
+6. predict_ml_model → 生成预测
 7. 根据预测值选股
 ```
 
@@ -262,10 +262,8 @@ def read_faq_resource(uri: str) -> str:
 1. load_csv_data → 加载数据
 2. generate_alpha158 → 生成特征
 3. apply_processor_chain → 预处理
-4. train_lstm_model → LSTM模型
-5. train_gru_model → GRU模型
-6. train_transformer_model → Transformer模型
-7. predict_with_model (×3) → 三个模型分别预测
+4. train_ml_model → 机器学习模型
+5. predict_ml_model → 生成预测
 8. evaluate_factor_ic (×3) → 评估对比
 ```
 
