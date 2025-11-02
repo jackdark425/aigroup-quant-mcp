@@ -40,6 +40,8 @@ from quantanalyzer.data.processor import (
     RobustZScoreNorm, CSRankNorm, MinMaxNorm, ProcessorChain
 )
 from quantanalyzer.factor import FactorLibrary, FactorEvaluator, Alpha158Generator
+# 深度学习模型已移除，专注于传统机器学习算法
+# from quantanalyzer.model.deep_models import LSTMModel, GRUModel, TransformerModel
 # 全局存储
 data_store = {}
 factor_store = {}
@@ -1031,10 +1033,39 @@ async def handle_merge_factor_data(args: Dict[str, Any]) -> List[types.TextConte
             price_data = price_data.loc[common_index]
         
         # 合并数据：因子列 + close列（用于生成标签）
-        # 只取价格数据中的close列
+        # 修复：确保正确的数据合并方式
+        # 只取价格数据中的close列，并确保索引对齐
+        close_data = price_data[['close']]
+        
+        # 使用内连接确保索引完全匹配
+        common_index = factor_data.index.intersection(close_data.index)
+        if len(common_index) == 0:
+            return [types.TextContent(
+                type="text",
+                text=MCPError.format_error(
+                    error_code=MCPError.INVALID_PARAMETER,
+                    message="因子数据和价格数据的索引没有重叠",
+                    details={
+                        "factor_data_id": factor_data_id,
+                        "price_data_id": price_data_id,
+                        "factor_index_range": f"{factor_data.index[0]} ~ {factor_data.index[-1]}",
+                        "price_index_range": f"{close_data.index[0]} ~ {close_data.index[-1]}"
+                    },
+                    suggestions=[
+                        "确认因子数据和价格数据来源于同一个原始数据",
+                        "检查数据的时间范围是否匹配"
+                    ]
+                )
+            )]
+        
+        # 使用共同索引
+        aligned_factor = factor_data.loc[common_index]
+        aligned_close = close_data.loc[common_index]
+        
+        # 合并数据
         merged_data = pd.concat([
-            factor_data,
-            price_data[['close']]
+            aligned_factor,
+            aligned_close
         ], axis=1)
         
         # 保存合并后的数据
@@ -1185,30 +1216,99 @@ async def handle_train_ml_model(args: Dict[str, Any]) -> List[types.TextContent]
         
         # 创建标签（下一日收益率）
         if 'close' in data.columns:
+            # 使用close列创建标签
             labels = data['close'].groupby(level=1).pct_change().shift(-1)
+            # 特征数据：排除close列
+            features = data.drop('close', axis=1)
         else:
-            # 如果是因子数据，尝试从原始数据获取标签
-            return [types.TextContent(
-                type="text",
-                text=MCPError.format_error(
-                    error_code=MCPError.INVALID_PARAMETER,
-                    message="因子数据需要提供对应的价格数据来生成标签",
-                    suggestions=[
-                        "使用原始数据ID（包含close列）",
-                        "或先使用preprocess_data加载价格数据"
-                    ]
-                )
-            )]
+            # 如果是纯因子数据，需要从原始数据获取close列
+            # 检查是否有对应的原始数据
+            original_data_id = None
+            for key in data_store.keys():
+                if key in data_id or data_id in key:
+                    original_data_id = key
+                    break
+            
+            if original_data_id and 'close' in data_store[original_data_id].columns:
+                # 从原始数据获取close列
+                original_data = data_store[original_data_id]
+                # 确保索引对齐
+                common_index = data.index.intersection(original_data.index)
+                if len(common_index) > 0:
+                    labels = original_data.loc[common_index]['close'].groupby(level=1).pct_change().shift(-1)
+                    features = data.loc[common_index]
+                else:
+                    return [types.TextContent(
+                        type="text",
+                        text=MCPError.format_error(
+                            error_code=MCPError.INVALID_PARAMETER,
+                            message="因子数据和原始价格数据的索引不匹配",
+                            suggestions=[
+                                "使用merge_factor_data工具合并因子和价格数据",
+                                "确保因子数据和价格数据来源于同一原始数据"
+                            ]
+                        )
+                    )]
+            else:
+                return [types.TextContent(
+                    type="text",
+                    text=MCPError.format_error(
+                        error_code=MCPError.INVALID_PARAMETER,
+                        message="因子数据需要提供对应的价格数据来生成标签",
+                        suggestions=[
+                            "使用merge_factor_data工具合并因子和价格数据",
+                            "或使用包含close列的原始数据ID"
+                        ]
+                    )
+                )]
         
         # 创建训练器
         trainer = ModelTrainer(model_type=model_type)
         
-        # 准备数据集
-        X_train, y_train, X_test, y_test = trainer.prepare_dataset(
-            data, labels,
-            train_start, train_end,
-            test_start, test_end
-        )
+        # 修复：改进时间范围筛选逻辑
+        # 将字符串日期转换为datetime对象
+        from datetime import datetime
+        train_start_dt = pd.to_datetime(train_start)
+        train_end_dt = pd.to_datetime(train_end)
+        test_start_dt = pd.to_datetime(test_start)
+        test_end_dt = pd.to_datetime(test_end)
+        
+        # 获取时间索引
+        time_index = features.index.get_level_values(0)
+        
+        # 筛选训练集和测试集
+        train_mask = (time_index >= train_start_dt) & (time_index <= train_end_dt)
+        test_mask = (time_index >= test_start_dt) & (time_index <= test_end_dt)
+        
+        X_train = features[train_mask]
+        y_train = labels[train_mask]
+        X_test = features[test_mask]
+        y_test = labels[test_mask]
+        
+        # 检查数据集是否为空
+        if len(X_train) == 0 or len(X_test) == 0:
+            return [types.TextContent(
+                type="text",
+                text=MCPError.format_error(
+                    error_code=MCPError.COMPUTATION_ERROR,
+                    message="训练或测试数据集为空",
+                    details={
+                        "train_samples": len(X_train),
+                        "test_samples": len(X_test),
+                        "train_period": f"{train_start} ~ {train_end}",
+                        "test_period": f"{test_start} ~ {test_end}",
+                        "data_time_range": f"{time_index.min()} ~ {time_index.max()}",
+                        "train_mask_count": train_mask.sum(),
+                        "test_mask_count": test_mask.sum()
+                    },
+                    suggestions=[
+                        "检查时间范围参数是否在数据时间范围内",
+                        "调整train_start, train_end, test_start, test_end参数",
+                        "使用list_factors查看数据的时间范围",
+                        "确保时间格式为YYYY-MM-DD"
+                    ]
+                )
+            )]
         
         # 训练模型
         trainer.train(X_train, y_train, X_test, y_test, params)
@@ -1358,8 +1458,16 @@ async def handle_predict_ml_model(args: Dict[str, Any]) -> List[types.TextConten
         model_info = model_store[model_id]
         trainer = model_info['trainer']
         
+        # 修复：确保预测数据特征与训练时一致
+        # 如果数据包含close列，需要排除它（因为训练时只使用因子特征）
+        if 'close' in data.columns:
+            # 使用与训练时相同的特征列
+            prediction_features = data.drop('close', axis=1)
+        else:
+            prediction_features = data
+        
         # 预测
-        predictions = trainer.predict(data)
+        predictions = trainer.predict(prediction_features)
         
         # 导出预测结果
         export_info = None

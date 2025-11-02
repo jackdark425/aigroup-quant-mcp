@@ -24,7 +24,7 @@ from quantanalyzer.data.processor import (
     ProcessorChain
 )
 from quantanalyzer.factor import FactorLibrary
-from quantanalyzer.model import LSTMModel
+# from quantanalyzer.model import LSTMModel  # 深度学习模型已移除
 
 print("=" * 80)
 print("Processor系统测试 - 数据预处理的正确方式")

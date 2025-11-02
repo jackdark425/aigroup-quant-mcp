@@ -21,13 +21,18 @@ class FactorLibrary:
             动量因子值
         """
         close = data['close']
-        # 修复：使用更稳健的动量计算方法，确保数据对齐
-        # 先计算收益率，然后计算滚动收益率，最后确保索引对齐
-        returns = close.groupby(level=1).pct_change()
-        momentum = returns.groupby(level=1).rolling(period).sum().droplevel(0)
         
-        # 确保动量因子与原始数据索引对齐
-        momentum = momentum.reindex(close.index)
+        # 修复：改进动量因子计算，使其产生更有意义的信号
+        # 计算过去period天的累计收益率作为动量
+        momentum = close.groupby(level=1).apply(
+            lambda x: (x / x.shift(period) - 1).fillna(0)
+        )
+        
+        # 确保索引正确
+        if isinstance(momentum, pd.Series):
+            momentum = momentum.droplevel(0)
+        else:
+            momentum = momentum.reset_index(level=0, drop=True)
         
         return momentum
     

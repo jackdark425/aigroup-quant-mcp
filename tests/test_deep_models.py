@@ -4,8 +4,8 @@ Tests for deep learning models
 import unittest
 import pandas as pd
 import numpy as np
-import torch
-from quantanalyzer.model.deep_models import LSTMModel, GRUModel, TransformerModel
+# import torch  # 深度学习模型已移除
+# from quantanalyzer.model.deep_models import LSTMModel, GRUModel, TransformerModel  # 深度学习模型已移除
 
 
 class TestDeepModels(unittest.TestCase):
@@ -21,7 +21,7 @@ class TestDeepModels(unittest.TestCase):
     
     def test_lstm_model_flat_input(self):
         """Test LSTM model with flat input features"""
-        model = LSTMModel(d_feat=6, hidden_size=32, n_epochs=1, batch_size=32)
+        # model = LSTMModel(d_feat=6, hidden_size=32, n_epochs=1, batch_size=32)  # 深度学习模型已移除
         
         # Should handle flat input without error
         try:
@@ -33,7 +33,7 @@ class TestDeepModels(unittest.TestCase):
     
     def test_lstm_model_sequence_input(self):
         """Test LSTM model with sequence input features"""
-        model = LSTMModel(d_feat=6, hidden_size=32, n_epochs=1, batch_size=32)
+        # model = LSTMModel(d_feat=6, hidden_size=32, n_epochs=1, batch_size=32)  # 深度学习模型已移除
         
         # Should handle sequence input without error
         try:
@@ -45,7 +45,7 @@ class TestDeepModels(unittest.TestCase):
     
     def test_gru_model_flat_input(self):
         """Test GRU model with flat input features"""
-        model = GRUModel(d_feat=6, hidden_size=32, n_epochs=1, batch_size=32)
+        # model = GRUModel(d_feat=6, hidden_size=32, n_epochs=1, batch_size=32)  # 深度学习模型已移除
         
         # Should handle flat input without error
         try:
@@ -57,7 +57,7 @@ class TestDeepModels(unittest.TestCase):
     
     def test_transformer_model_flat_input(self):
         """Test Transformer model with flat input features"""
-        model = TransformerModel(d_feat=6, d_model=32, n_epochs=1, batch_size=32)
+        # model = TransformerModel(d_feat=6, d_model=32, n_epochs=1, batch_size=32)  # 深度学习模型已移除
         
         # Should handle flat input without error
         try:

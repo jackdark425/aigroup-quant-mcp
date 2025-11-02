@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 import numpy as np
 from quantanalyzer.factor import Alpha158Generator
-from quantanalyzer.model import LSTMModel, GRUModel, TransformerModel
+# from quantanalyzer.model import LSTMModel, GRUModel, TransformerModel  # 深度学习模型已移除
 
 print("=" * 80)
 print("测试Alpha158因子和深度学习模型")
@@ -93,8 +93,8 @@ print("4. 测试LSTM模型")
 print("=" * 80)
 
 print("\n4.1 创建LSTM模型...")
-lstm_model = LSTMModel(
-    d_feat=X_train.shape[1],
+# lstm_model = LSTMModel(
+#     d_feat=X_train.shape[1],  # 深度学习模型已移除
     hidden_size=32,
     num_layers=1,
     n_epochs=20,
@@ -134,8 +134,8 @@ print("5. 测试GRU模型")
 print("=" * 80)
 
 print("\n5.1 创建GRU模型...")
-gru_model = GRUModel(
-    d_feat=X_train.shape[1],
+# gru_model = GRUModel(
+#     d_feat=X_train.shape[1],  # 深度学习模型已移除
     hidden_size=32,
     num_layers=1,
     n_epochs=20,
@@ -163,8 +163,8 @@ print("6. 测试Transformer模型")
 print("=" * 80)
 
 print("\n6.1 创建Transformer模型...")
-transformer_model = TransformerModel(
-    d_feat=X_train.shape[1],
+# transformer_model = TransformerModel(
+#     d_feat=X_train.shape[1],  # 深度学习模型已移除
     d_model=32,
     nhead=4,
     num_layers=1,

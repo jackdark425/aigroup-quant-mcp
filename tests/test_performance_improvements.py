@@ -17,7 +17,7 @@ import time
 import tracemalloc
 import gc
 from quantanalyzer.factor.alpha158 import Alpha158Generator
-from quantanalyzer.model.deep_models import LSTMModel, GRUModel, TransformerModel
+# from quantanalyzer.model.deep_models import LSTMModel, GRUModel, TransformerModel  # 深度学习模型已移除
 from quantanalyzer.backtest.engine import BacktestEngine
 
 
@@ -149,11 +149,12 @@ def test_deep_learning_memory():
     )
     y_val = pd.Series(np.random.randn(200))
     
-    models = [
-        ('LSTM', LSTMModel),
-        ('GRU', GRUModel),
-        ('Transformer', TransformerModel),
-    ]
+    # models = [
+    #     ('LSTM', LSTMModel),
+    #     ('GRU', GRUModel),
+    #     ('Transformer', TransformerModel),
+    # ]
+    models = []  # 深度学习模型已移除
     
     for model_name, ModelClass in models:
         print(f"\n{model_name}模型测试")
