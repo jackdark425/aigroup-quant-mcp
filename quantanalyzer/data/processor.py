@@ -592,18 +592,29 @@ class ProcessorChain:
     
     def __init__(self, processors: List[Processor]):
         self.processors = processors
+        self.logger = logging.getLogger(__name__)
     
     def fit(self, df: pd.DataFrame):
         """按顺序fit所有processor"""
-        for proc in self.processors:
+        self.logger.debug(f"Fitting processor chain with {len(self.processors)} processors")
+        original_shape = df.shape
+        for i, proc in enumerate(self.processors):
+            self.logger.debug(f"Fitting processor {i+1}/{len(self.processors)}: {proc.__class__.__name__}")
             proc.fit(df)
             df = proc(df)  # fit后的数据传给下一个
+            self.logger.debug(f"After processor {i+1}, data shape: {df.shape}")
+        self.logger.debug(f"Finished fitting processor chain. Original shape: {original_shape}, Final shape: {df.shape}")
         return self
     
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """按顺序应用所有processor"""
-        for proc in self.processors:
+        self.logger.debug(f"Transforming data with {len(self.processors)} processors")
+        original_shape = df.shape
+        for i, proc in enumerate(self.processors):
+            self.logger.debug(f"Applying processor {i+1}/{len(self.processors)}: {proc.__class__.__name__}")
             df = proc(df)
+            self.logger.debug(f"After processor {i+1}, data shape: {df.shape}")
+        self.logger.debug(f"Finished transforming data. Original shape: {original_shape}, Final shape: {df.shape}")
         return df
     
     def __call__(self, df: pd.DataFrame) -> pd.DataFrame:

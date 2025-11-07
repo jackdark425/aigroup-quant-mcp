@@ -11,14 +11,7 @@ from mcp import types
 
 from .handlers import (
     handle_preprocess_data,
-    handle_calculate_factor,
-    handle_generate_alpha158,
-    handle_merge_factor_data,
-    handle_apply_processor_chain,
-    handle_evaluate_factor_ic,
-    handle_list_factors,
-    handle_train_ml_model,
-    handle_predict_ml_model
+    handle_generate_alpha158
 )
 
 # 创建MCP server实例
@@ -80,22 +73,8 @@ async def handle_call_tool(
     # 路由到对应的处理函数
     if name == "preprocess_data":
         return await handle_preprocess_data(arguments)
-    elif name == "calculate_factor":
-        return await handle_calculate_factor(arguments)
     elif name == "generate_alpha158":
         return await handle_generate_alpha158(arguments)
-    elif name == "merge_factor_data":
-        return await handle_merge_factor_data(arguments)
-    elif name == "apply_processor_chain":
-        return await handle_apply_processor_chain(arguments)
-    elif name == "evaluate_factor_ic":
-        return await handle_evaluate_factor_ic(arguments)
-    elif name == "list_factors":
-        return await handle_list_factors(arguments)
-    elif name == "train_ml_model":
-        return await handle_train_ml_model(arguments)
-    elif name == "predict_ml_model":
-        return await handle_predict_ml_model(arguments)
     else:
         from .errors import MCPError
         return [types.TextContent(

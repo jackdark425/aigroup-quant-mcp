@@ -4,7 +4,8 @@ Tests for the factor module
 import unittest
 import pandas as pd
 import numpy as np
-from quantanalyzer.factor import FactorLibrary
+from quantanalyzer.factor.library import FactorLibrary
+from quantanalyzer.factor.alpha158 import Alpha158Generator
 
 
 class TestFactorLibrary(unittest.TestCase):
@@ -12,43 +13,89 @@ class TestFactorLibrary(unittest.TestCase):
     
     def setUp(self):
         """Set up test data"""
-        # 创建MultiIndex数据
-        dates = pd.date_range('2020-01-01', periods=5)
-        symbols = ['AAPL'] * 5
-        index = pd.MultiIndex.from_arrays([dates, symbols], names=['datetime', 'symbol'])
+        # Create simple test data with MultiIndex
+        dates = pd.date_range('2020-01-01', periods=20)
+        symbols = ['AAPL', 'GOOGL']
+        index = pd.MultiIndex.from_product([dates, symbols], names=['datetime', 'symbol'])
         
-        self.data = pd.DataFrame({
-            'open': [1, 2, 3, 4, 5],
-            'high': [1.5, 2.5, 3.5, 4.5, 5.5],
-            'low': [0.5, 1.5, 2.5, 3.5, 4.5],
-            'close': [1.2, 2.2, 3.2, 4.2, 5.2],
-            'volume': [100, 200, 300, 400, 500]
+        np.random.seed(42)
+        data = pd.DataFrame({
+            'open': np.random.rand(40) * 100,
+            'high': np.random.rand(40) * 100 + 10,
+            'low': np.random.rand(40) * 100 - 10,
+            'close': np.random.rand(40) * 100,
+            'volume': np.random.rand(40) * 1000000
         }, index=index)
         
-        self.library = FactorLibrary()
+        self.data = data
     
-    def test_sma_factor(self):
-        """Test SMA factor calculation"""
-        result = self.library.calculate_factor('sma', self.data, window=3)
-        self.assertIn('sma_3', result.columns)
-        # Check that first 2 values are NaN (due to window size)
-        self.assertTrue(pd.isna(result['sma_3'].iloc[0]))
-        self.assertTrue(pd.isna(result['sma_3'].iloc[1]))
-        
-    def test_returns_factor(self):
-        """Test returns factor calculation"""
-        result = self.library.calculate_factor('returns', self.data)
-        self.assertIn('returns', result.columns)
-        # First value should be NaN
-        self.assertTrue(pd.isna(result['returns'].iloc[0]))
+    def test_momentum_factor(self):
+        """Test momentum factor calculation"""
+        factor = FactorLibrary.momentum(self.data, period=5)
+        self.assertIsInstance(factor, pd.Series)
+        self.assertEqual(len(factor), len(self.data))
         
     def test_volatility_factor(self):
         """Test volatility factor calculation"""
-        result = self.library.calculate_factor('volatility', self.data, window=3)
-        self.assertIn('volatility_3', result.columns)
-        # Check that first 2 values are NaN (due to window size)
-        self.assertTrue(pd.isna(result['volatility_3'].iloc[0]))
-        self.assertTrue(pd.isna(result['volatility_3'].iloc[1]))
+        factor = FactorLibrary.volatility(self.data, period=5)
+        self.assertIsInstance(factor, pd.Series)
+        self.assertEqual(len(factor), len(self.data))
+        
+    def test_volume_ratio_factor(self):
+        """Test volume ratio factor calculation"""
+        factor = FactorLibrary.volume_ratio(self.data, period=5)
+        self.assertIsInstance(factor, pd.Series)
+        self.assertEqual(len(factor), len(self.data))
+        
+    def test_rsi_factor(self):
+        """Test RSI factor calculation"""
+        factor = FactorLibrary.rsi(self.data, period=14)
+        self.assertIsInstance(factor, pd.Series)
+        self.assertEqual(len(factor), len(self.data))
+
+
+class TestAlpha158Generator(unittest.TestCase):
+    """Test cases for Alpha158Generator"""
+    
+    def setUp(self):
+        """Set up test data"""
+        # Create simple test data with MultiIndex
+        dates = pd.date_range('2020-01-01', periods=20)
+        symbols = ['AAPL', 'GOOGL']
+        index = pd.MultiIndex.from_product([dates, symbols], names=['datetime', 'symbol'])
+        
+        np.random.seed(42)
+        data = pd.DataFrame({
+            'open': np.random.rand(40) * 100,
+            'high': np.random.rand(40) * 100 + 10,
+            'low': np.random.rand(40) * 100 - 10,
+            'close': np.random.rand(40) * 100,
+            'volume': np.random.rand(40) * 1000000,
+            'vwap': np.random.rand(40) * 100
+        }, index=index)
+        
+        self.data = data
+    
+    def test_alpha158_generator_initialization(self):
+        """Test Alpha158Generator initialization"""
+        generator = Alpha158Generator(self.data)
+        self.assertIsNotNone(generator)
+        self.assertEqual(generator.data.shape, self.data.shape)
+        
+    def test_alpha158_generate_all(self):
+        """Test Alpha158 factor generation"""
+        generator = Alpha158Generator(self.data)
+        factors = generator.generate_all(
+            kbar=True,
+            price=True,
+            volume=True,
+            rolling=True,
+            rolling_windows=[5, 10]
+        )
+        
+        self.assertIsInstance(factors, pd.DataFrame)
+        self.assertGreater(factors.shape[1], 0)  # Should have at least some factors
+        self.assertEqual(factors.shape[0], self.data.shape[0])
 
 
 if __name__ == '__main__':

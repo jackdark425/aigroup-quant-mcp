@@ -1,0 +1,14 @@
+{
+  "log_level": "INFO",
+  "log_file": "logs/quantanalyzer.log",
+  "chunk_size": 10000,
+  "parallel_workers": 4,
+  "memory_limit": null,
+  "alpha158_kbar": true,
+  "alpha158_price": true,
+  "alpha158_volume": true,
+  "alpha158_rolling": true,
+  "alpha158_rolling_windows": [5, 10, 20, 30, 60],
+  "default_model_type": "lightgbm",
+  "default_processor_chain": ["ProcessInf", "CSZFillna", "CSZScoreNorm"]
+}

@@ -1,71 +1,61 @@
 """
-Tests for deep learning models
+Tests for traditional machine learning models that replaced deep learning models
 """
 import unittest
+import pytest
 import pandas as pd
 import numpy as np
-# import torch  # 深度学习模型已移除
-# from quantanalyzer.model.deep_models import LSTMModel, GRUModel, TransformerModel  # 深度学习模型已移除
+from quantanalyzer.model import ModelTrainer
 
-
-class TestDeepModels(unittest.TestCase):
-    """Test cases for deep learning models"""
+class TestTraditionalModels(unittest.TestCase):
+    """Test cases for traditional machine learning models that replaced deep learning models"""
     
     def setUp(self):
         """Set up test data"""
+        # Create simple test data
         np.random.seed(42)
-        # Create test data with different input shapes
-        self.X_flat = pd.DataFrame(np.random.rand(100, 6))  # Flat features
-        self.X_sequence = pd.DataFrame(np.random.rand(100, 30))  # Sequence features (5 time steps * 6 features)
-        self.y = pd.Series(np.random.rand(100))
-    
-    def test_lstm_model_flat_input(self):
-        """Test LSTM model with flat input features"""
-        # model = LSTMModel(d_feat=6, hidden_size=32, n_epochs=1, batch_size=32)  # 深度学习模型已移除
+        self.X_train = pd.DataFrame(np.random.rand(100, 5), 
+                                   columns=[f'feature_{i}' for i in range(5)])
+        self.y_train = pd.Series(np.random.rand(100), name='target')
+        self.X_test = pd.DataFrame(np.random.rand(20, 5),
+                                  columns=[f'feature_{i}' for i in range(5)])
+        self.y_test = pd.Series(np.random.rand(20), name='target')
         
-        # Should handle flat input without error
-        try:
-            model.fit(self.X_flat, self.y)
-            predictions = model.predict(self.X_flat)
-            self.assertEqual(len(predictions), len(self.X_flat))
-        except Exception as e:
-            self.fail(f"LSTM model failed with flat input: {e}")
-    
-    def test_lstm_model_sequence_input(self):
-        """Test LSTM model with sequence input features"""
-        # model = LSTMModel(d_feat=6, hidden_size=32, n_epochs=1, batch_size=32)  # 深度学习模型已移除
+    def test_random_forest_model(self):
+        """Test Random Forest model training and prediction"""
+        trainer = ModelTrainer(model_type='random_forest')
+        trainer.train(self.X_train, self.y_train)
         
-        # Should handle sequence input without error
-        try:
-            model.fit(self.X_sequence, self.y)
-            predictions = model.predict(self.X_sequence)
-            self.assertEqual(len(predictions), len(self.X_sequence))
-        except Exception as e:
-            self.fail(f"LSTM model failed with sequence input: {e}")
-    
-    def test_gru_model_flat_input(self):
-        """Test GRU model with flat input features"""
-        # model = GRUModel(d_feat=6, hidden_size=32, n_epochs=1, batch_size=32)  # 深度学习模型已移除
+        # Check that model was trained
+        self.assertIsNotNone(trainer.model)
+        self.assertIsNotNone(trainer.feature_importance)
         
-        # Should handle flat input without error
-        try:
-            model.fit(self.X_flat, self.y)
-            predictions = model.predict(self.X_flat)
-            self.assertEqual(len(predictions), len(self.X_flat))
-        except Exception as e:
-            self.fail(f"GRU model failed with flat input: {e}")
-    
-    def test_transformer_model_flat_input(self):
-        """Test Transformer model with flat input features"""
-        # model = TransformerModel(d_feat=6, d_model=32, n_epochs=1, batch_size=32)  # 深度学习模型已移除
+        # Check that feature importance has correct shape
+        self.assertEqual(len(trainer.feature_importance), self.X_train.shape[1])
         
-        # Should handle flat input without error
-        try:
-            model.fit(self.X_flat, self.y)
-            predictions = model.predict(self.X_flat)
-            self.assertEqual(len(predictions), len(self.X_flat))
-        except Exception as e:
-            self.fail(f"Transformer model failed with flat input: {e}")
+    def test_gradient_boosting_model(self):
+        """Test Gradient Boosting model training and prediction"""
+        trainer = ModelTrainer(model_type='gradient_boosting')
+        trainer.train(self.X_train, self.y_train)
+        
+        # Check that model was trained
+        self.assertIsNotNone(trainer.model)
+        self.assertIsNotNone(trainer.feature_importance)
+        
+        # Check that feature importance has correct shape
+        self.assertEqual(len(trainer.feature_importance), self.X_train.shape[1])
+        
+    def test_linear_model(self):
+        """Test Linear model training and prediction"""
+        trainer = ModelTrainer(model_type='linear')
+        trainer.train(self.X_train, self.y_train)
+        
+        # Check that model was trained
+        self.assertIsNotNone(trainer.model)
+        self.assertIsNotNone(trainer.feature_importance)
+        
+        # Check that feature importance has correct shape
+        self.assertEqual(len(trainer.feature_importance), self.X_train.shape[1])
 
 
 if __name__ == '__main__':

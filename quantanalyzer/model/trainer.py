@@ -5,12 +5,18 @@
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional, Union
+import logging
+import os
+import pickle
+
+from ..logger import get_logger
+from ..config import get_config
 
 
 class ModelTrainer:
     """模型训练器 - 支持多种传统机器学习算法"""
     
-    def __init__(self, model_type: str = "lightgbm"):
+    def __init__(self, model_type: str = "lightgbm", model_id: Optional[str] = None):
         """
         初始化模型训练器
         
@@ -21,11 +27,18 @@ class ModelTrainer:
                 - 支持向量机: svm, svr
                 - 朴素贝叶斯: naive_bayes
                 - K-最近邻: knn
+            model_id: 模型ID，用于缓存和标识模型
         """
-        self.model_type = model_type
+        self.logger = get_logger(__name__)
+        self.config = get_config()
+        self.model_type = model_type or self.config.get('default_model_type', 'lightgbm')
+        self.model_id = model_id or f"{model_type}_{id(self)}"
         self.model = None
         self.feature_importance = None
         self.model_params = {}
+        self.cache_dir = ".model_cache"
+        os.makedirs(self.cache_dir, exist_ok=True)
+        self.logger.info(f"Initialized ModelTrainer with model_type: {self.model_type}, model_id: {self.model_id}")
     
     def prepare_dataset(
         self,
@@ -42,6 +55,7 @@ class ModelTrainer:
         Returns:
             (X_train, y_train, X_test, y_test)
         """
+        self.logger.debug("Preparing dataset")
         # 训练集
         train_mask = (
             (factors.index.get_level_values(0) >= train_start) &
@@ -67,6 +81,7 @@ class ModelTrainer:
         X_test = X_test[test_valid]
         y_test = y_test[test_valid]
         
+        self.logger.info(f"Dataset prepared - Train: {X_train.shape}, Test: {X_test.shape}")
         return X_train, y_train, X_test, y_test
     
     def train(
@@ -75,7 +90,8 @@ class ModelTrainer:
         y_train: pd.Series,
         X_val: Optional[pd.DataFrame] = None,
         y_val: Optional[pd.Series] = None,
-        params: Optional[Dict[str, Any]] = None
+        params: Optional[Dict[str, Any]] = None,
+        use_cache: bool = True
     ):
         """
         训练模型
@@ -86,11 +102,28 @@ class ModelTrainer:
             X_val: 验证特征（可选）
             y_val: 验证标签（可选）
             params: 模型参数
+            use_cache: 是否使用缓存
         """
+        # 检查缓存
+        if use_cache:
+            cache_file = os.path.join(self.cache_dir, f"{self.model_id}.pkl")
+            if os.path.exists(cache_file):
+                try:
+                    with open(cache_file, 'rb') as f:
+                        cached_model = pickle.load(f)
+                        self.model = cached_model['model']
+                        self.feature_importance = cached_model['feature_importance']
+                        self.model_params = cached_model['model_params']
+                    self.logger.info(f"Loaded model from cache: {cache_file}")
+                    return
+                except Exception as e:
+                    self.logger.warning(f"Failed to load model from cache: {e}")
+        
         if params is None:
             params = self._get_default_params()
         
         self.model_params = params
+        self.logger.info(f"Training {self.model_type} model with params: {params}")
         
         # 线性模型
         if self.model_type in ["linear", "ridge"]:
@@ -148,7 +181,7 @@ class ModelTrainer:
                     train_data,
                     valid_sets=[train_data, val_data],
                     num_boost_round=1000,
-                    callbacks=[lgb.early_stopping(50)]
+                    callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0)]
                 )
             else:
                 self.model = lgb.train(
@@ -267,11 +300,30 @@ class ModelTrainer:
             
         else:
             raise ValueError(f"不支持的模型类型: {self.model_type}")
+        
+        self.logger.info(f"Model training completed. Feature importance calculated for top 5 features: "
+                        f"{self.feature_importance.head().to_dict()}")
+        
+        # 保存到缓存
+        if use_cache:
+            try:
+                cache_file = os.path.join(self.cache_dir, f"{self.model_id}.pkl")
+                with open(cache_file, 'wb') as f:
+                    pickle.dump({
+                        'model': self.model,
+                        'feature_importance': self.feature_importance,
+                        'model_params': self.model_params
+                    }, f)
+                self.logger.info(f"Saved model to cache: {cache_file}")
+            except Exception as e:
+                self.logger.warning(f"Failed to save model to cache: {e}")
     
     def predict(self, X: pd.DataFrame) -> pd.Series:
         """预测"""
         if self.model is None:
             raise ValueError("Model not trained yet")
+        
+        self.logger.debug(f"Making predictions with {self.model_type} model on data of shape {X.shape}")
         
         # 线性模型
         if self.model_type in ["linear", "ridge", "lasso", "elasticnet"]:
